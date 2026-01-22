@@ -33,8 +33,11 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         
         # 初始化管理器
+        ## 用户管理
         self.user_manager = UserManager()
+        ## 消息管理
         self.message_manager = MessageManager()
+        ## 数据库管理
         self.db_manager = DatabaseManager()
         
         # 初始化当前用户
