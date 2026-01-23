@@ -2,18 +2,20 @@
 TCP 消息服务 - 用于点对点消息传输
 """
 import socket
-import json
 import threading
-from typing import Callable, Optional
+import selectors
+import json
+from typing import Callable, Optional, Dict
 from src.config import config
 from src.utils.logger import get_logger
+from src.utils.network_utils import send_json, read_and_unpack
 
 
 logger = get_logger(__name__)
 
 
 class MessageService:
-    """TCP 消息服务类"""
+    """TCP 消息服务类 (基于 selectors 实现多路复用)"""
     
     def __init__(self, on_message_received: Optional[Callable] = None):
         """
@@ -26,6 +28,8 @@ class MessageService:
         self.server_socket = None
         self.running = False
         self.server_thread = None
+        self.selector = selectors.DefaultSelector()
+        self._client_buffers: Dict[socket.socket, bytearray] = {}
         
     def start(self):
         """启动消息服务"""
@@ -35,17 +39,26 @@ class MessageService:
         
         self.running = True
         
-        # 创建 TCP socket
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind(('', config.TCP_PORT))
-        self.server_socket.listen(5)
-        
-        # 启动服务线程
-        self.server_thread = threading.Thread(target=self._server_loop, daemon=True)
-        self.server_thread.start()
-        
-        logger.info(f"消息服务已启动，端口: {config.TCP_PORT}")
+        try:
+            # 创建 TCP socket
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.setblocking(False)  # 设置为非阻塞
+            self.server_socket.bind(('', config.TCP_PORT))
+            self.server_socket.listen(100)  # 增加监听队列
+            
+            # 注册服务器 socket 到 selector
+            self.selector.register(self.server_socket, selectors.EVENT_READ, self._accept)
+            
+            # 启动服务线程
+            self.server_thread = threading.Thread(target=self._server_loop, daemon=True)
+            self.server_thread.start()
+            
+            logger.info(f"消息服务已启动 (多路复用模式)，端口: {config.TCP_PORT}")
+        except Exception as e:
+            self.running = False
+            logger.error(f"启动消息服务失败: {e}")
+            raise
     
     def stop(self):
         """停止消息服务"""
@@ -54,8 +67,15 @@ class MessageService:
         
         self.running = False
         
+        # 关闭所有客户端连接
+        for sock in list(self._client_buffers.keys()):
+            self._close_client(sock)
+            
         if self.server_socket:
+            self.selector.unregister(self.server_socket)
             self.server_socket.close()
+        
+        self.selector.close()
         
         if self.server_thread:
             self.server_thread.join(timeout=2)
@@ -66,57 +86,51 @@ class MessageService:
         """服务器监听循环"""
         while self.running:
             try:
-                client_socket, addr = self.server_socket.accept()
-                # 为每个客户端连接创建新线程
-                client_thread = threading.Thread(
-                    target=self._handle_client,
-                    args=(client_socket, addr),
-                    daemon=True
-                )
-                client_thread.start()
+                # 等待 I/O 事件，设置超时以便能响应停止信号
+                events = self.selector.select(timeout=1)
+                for key, mask in events:
+                    callback = key.data
+                    callback(key.fileobj, mask)
             except Exception as e:
                 if self.running:
-                    logger.error(f"接受连接失败: {e}")
+                    logger.error(f"Selector 循环出错: {e}")
     
-    def _handle_client(self, client_socket: socket.socket, addr: tuple):
-        """
-        处理客户端连接
-        
-        Args:
-            client_socket: 客户端 socket
-            addr: 客户端地址
-        """
+    def _accept(self, sock, mask):
+        """处理新连接"""
         try:
+            client_socket, addr = sock.accept()
             logger.info(f"接收到来自 {addr} 的连接")
-            
-            # 读取消息长度（前 4 字节）
-            length_data = client_socket.recv(4)
-            if not length_data:
-                return
-            
-            msg_length = int.from_bytes(length_data, byteorder='big')
-            
-            # 读取完整消息
-            message_data = b''
-            while len(message_data) < msg_length:
-                chunk = client_socket.recv(min(msg_length - len(message_data), 4096))
-                if not chunk:
-                    break
-                message_data += chunk
-            
-            # 解析消息
-            message_json = json.loads(message_data.decode('utf-8'))
-            
-            # 调用回调
-            if self.on_message_received:
-                self.on_message_received(message_json)
-            
-            logger.info(f"消息接收成功: {message_json.get('msg_id', 'unknown')}")
-            
+            client_socket.setblocking(False)
+            self._client_buffers[client_socket] = bytearray()
+            # 注册客户端 socket 监听读事件
+            self.selector.register(client_socket, selectors.EVENT_READ, self._read)
         except Exception as e:
-            logger.error(f"处理客户端连接失败: {e}")
-        finally:
+            logger.error(f"接受连接失败: {e}")
+
+    def _read(self, client_socket, mask):
+        """处理读数据"""
+        buf = self._client_buffers[client_socket]
+        messages = read_and_unpack(client_socket, buf)
+        
+        if messages is None:
+            # 连接已关闭
+            self._close_client(client_socket)
+        else:
+            # 处理解析出的消息
+            for msg in messages:
+                if self.on_message_received:
+                    self.on_message_received(msg)
+                    logger.info(f"消息接收成功: {msg.get('msg_id', 'unknown')}")
+
+    def _close_client(self, client_socket):
+        """关闭客户端连接并清理资源"""
+        try:
+            self.selector.unregister(client_socket)
             client_socket.close()
+        except:
+            pass
+        if client_socket in self._client_buffers:
+            del self._client_buffers[client_socket]
     
     def send_message(self, target_ip: str, target_port: int, message: dict) -> bool:
         """
@@ -137,15 +151,8 @@ class MessageService:
             client_socket.settimeout(5)  # 设置超时
             client_socket.connect((target_ip, target_port))
             
-            # 序列化消息
-            data = json.dumps(message).encode('utf-8')
-            
-            # 发送消息长度（前 4 字节）
-            length_data = len(data).to_bytes(4, byteorder='big')
-            client_socket.sendall(length_data)
-            
-            # 发送消息内容
-            client_socket.sendall(data)
+            # 使用工具函数发送 JSON 消息
+            send_json(client_socket, message)
             
             logger.info(f"消息已发送到 {target_ip}:{target_port}")
             return True

@@ -114,7 +114,7 @@ class BroadcastService:
             
             data = json.dumps(heartbeat).encode('utf-8')
             self.socket.sendto(data, (config.BROADCAST_ADDRESS, config.BROADCAST_PORT))
-            logger.debug("心跳包已发送")
+            logger.info(f"心跳包已发送 data:{heartbeat}, addr:{(config.BROADCAST_ADDRESS, config.BROADCAST_PORT)}")
             
         except Exception as e:
             logger.error(f"发送心跳包失败: {e}")

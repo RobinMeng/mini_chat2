@@ -3,6 +3,7 @@
 """
 import sys
 from pathlib import Path
+import argparse
 
 # 添加项目根目录到 Python 路径
 BASE_DIR = Path(__file__).parent.parent
@@ -85,8 +86,8 @@ def test_message():
 
 
 if __name__ == "__main__":
-    import argparse
-    
+
+
     parser = argparse.ArgumentParser(description="网络功能测试")
     parser.add_argument(
         'test',
