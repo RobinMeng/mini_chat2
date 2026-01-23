@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 class MainWindow(QMainWindow):
     """主窗口类 - 继承自生成的 UI 类"""
     
-    # 信号定义
+    # 信号定义  dict, tuple 用户数据和地址
     user_discovered_signal = pyqtSignal(dict, tuple)
     message_received_signal = pyqtSignal(dict, tuple)
     
