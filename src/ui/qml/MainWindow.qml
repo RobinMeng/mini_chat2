@@ -14,24 +14,14 @@ ApplicationWindow {
     Connections {
         target: backend
         function onChatHistoryChanged(history) {
-            messageModel.clear()
-            for (var i = 0; i < history.length; i++) {
-                messageModel.append(history[i])
-            }
             chatList.positionViewAtEnd()
         }
         function onNewMessageReceived(msg) {
-            messageModel.append(msg)
             chatList.positionViewAtEnd()
         }
         function onNewMessageSent(msg) {
-            messageModel.append(msg)
             chatList.positionViewAtEnd()
         }
-    }
-
-    ListModel {
-        id: messageModel
     }
 
     RowLayout {
@@ -76,6 +66,7 @@ ApplicationWindow {
                                 color: "green"
                             }
                             ColumnLayout {
+                                Layout.fillWidth: true
                                 Label {
                                     text: modelData.username
                                     font.bold: true
@@ -84,6 +75,20 @@ ApplicationWindow {
                                     text: modelData.ip
                                     font.pixelSize: 10
                                     color: "#666666"
+                                }
+                            }
+                            // 未读消息气泡
+                            Rectangle {
+                                visible: modelData.unread_count > 0
+                                width: 20; height: 20
+                                radius: 10
+                                color: "#ff4d4f"
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: modelData.unread_count > 99 ? "99+" : modelData.unread_count
+                                    color: "white"
+                                    font.pixelSize: 10
+                                    font.bold: true
                                 }
                             }
                         }
@@ -124,7 +129,7 @@ ApplicationWindow {
                 id: chatList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                model: messageModel
+                model: backend.messageModel
                 clip: true
                 spacing: 10
                 footer: Item { height: 10 }
@@ -134,11 +139,9 @@ ApplicationWindow {
                     width: chatList.width
                     spacing: 5
                     
-                    // 简化判断：直接对比发送者名称和当前用户名
-                    property bool isMine: model.from_username === backend.currentUserName
                     Row {
-                        anchors.right: isMine ? parent.right : undefined
-                        anchors.left: isMine ? undefined : parent.left
+                        anchors.right: is_mine ? parent.right : undefined
+                        anchors.left: is_mine ? undefined : parent.left
                         anchors.rightMargin: 10
                         anchors.leftMargin: 10
                         
@@ -146,12 +149,12 @@ ApplicationWindow {
                             width: msgLabel.implicitWidth + 20
                             height: msgLabel.implicitHeight + 20
                             radius: 10
-                            color: model.from_username === backend.currentUserName ? "#95ec69" : "#ffffff"
+                            color: is_mine ? "#95ec69" : "#ffffff"
                             border.color: "#dddddd"
                             Label {
                                 id: msgLabel
                                 anchors.centerIn: parent
-                                text: model.content
+                                text: content
                                 wrapMode: Label.Wrap
                                 width: Math.min(implicitWidth, chatList.width * 0.6)
                             }

@@ -1,6 +1,7 @@
 """
 数据库管理器
 """
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -42,8 +43,23 @@ class DatabaseManager:
     def close(self):
         """关闭数据库连接"""
         if self.conn:
-            self.conn.close()
-            logger.info("数据库连接已关闭")
+            try:
+                self.conn.close()
+                self.conn = None
+                self.cursor = None
+                logger.info("数据库连接已关闭")
+            except Exception as e:
+                logger.error(f"关闭数据库失败: {e}")
+
+    def destroy(self):
+        """彻底销毁数据库（阅后即焚）"""
+        self.close()
+        try:
+            if os.path.exists(self.db_path):
+                os.remove(self.db_path)
+                logger.info(f"数据库文件已物理删除: {self.db_path}")
+        except Exception as e:
+            logger.error(f"删除数据库文件失败: {e}")
     
     def init_tables(self):
         """初始化数据库表"""
@@ -236,3 +252,23 @@ class DatabaseManager:
         messages = [Message.from_dict(row) for row in rows]
         messages.reverse()
         return messages
+
+    def get_unread_count(self, from_user_id, to_user_id):
+        """获取来自特定用户的未读消息数量"""
+        sql = '''
+            SELECT COUNT(*) as count FROM messages 
+            WHERE from_user_id = ? AND to_user_id = ? AND is_read = 0
+        '''
+        params = (from_user_id, to_user_id)
+        result = self.query_one(sql, params)
+        return result['count'] if result else 0
+
+    def mark_as_read(self, from_user_id, to_user_id):
+        """将来自特定用户的所有未读消息标记为已读"""
+        sql = '''
+            UPDATE messages 
+            SET is_read = 1 
+            WHERE from_user_id = ? AND to_user_id = ? AND is_read = 0
+        '''
+        params = (from_user_id, to_user_id)
+        return self.execute(sql, params)
