@@ -147,10 +147,14 @@ class QmlBackend(QObject):
 
     @pyqtProperty(list, notify=userListChanged)
     def onlineUsers(self):
-        """返回在线用户列表供 QML 渲染"""
+        """返回用户列表供 QML 渲染 (包含在线和刚下线的)"""
         users = []
         current_me_id = self.user_manager.current_user.user_id
-        for user in self.user_manager.get_online_users():
+        # 获取所有已知用户，按在线状态排序（在线在前）
+        all_users = sorted(self.user_manager.get_all_users(), 
+                          key=lambda u: u.status != "online")
+        
+        for user in all_users:
             # 获取来自该用户的未读消息数
             unread = self.db_manager.get_unread_count(user.user_id, current_me_id)
             users.append({
@@ -158,9 +162,18 @@ class QmlBackend(QObject):
                 'username': user.username,
                 'ip': user.ip_address,
                 'is_current': user.user_id == self._current_chat_user_id,
-                'unread_count': unread
+                'unread_count': unread,
+                'status': user.status # "online" 或 "offline"
             })
         return users
+
+    @pyqtProperty(str, notify=userListChanged)
+    def currentChatUserStatus(self):
+        """当前聊天对象的在线状态"""
+        if not self._current_chat_user_id:
+            return "offline"
+        user = self.user_manager.get_user(self._current_chat_user_id)
+        return user.status if user else "offline"
 
     # --- 槽函数供 QML 调用 ---
 
@@ -198,6 +211,10 @@ class QmlBackend(QObject):
         target_user = self.user_manager.get_user(self._current_chat_user_id)
         if not target_user:
             return
+            
+        if target_user.status != "online":
+            logger.warning(f"无法向离线用户发送消息: {target_user.username}")
+            return
 
         try:
             # 创建并发送
@@ -227,8 +244,17 @@ class QmlBackend(QObject):
 
     def _on_user_discovered(self, user_data: dict, addr: tuple):
         """用户发现回调"""
+        msg_type = user_data.get('type', 'HEARTBEAT')
+        user_id = user_data.get('user_id', '')
+        
+        if msg_type == 'BYE':
+            if self.user_manager.set_user_offline(user_id):
+                logger.info(f"收到下线广播，用户状态设为下线: {user_id}")
+                self.userListChanged.emit()
+            return
+
         user = User(
-            user_id=user_data.get('user_id', ''),
+            user_id=user_id,
             username=user_data.get('username', ''),
             hostname=user_data.get('hostname', ''),
             ip_address=user_data.get('ip', ''),
@@ -259,9 +285,10 @@ class QmlBackend(QObject):
     def stop(self):
         """停止所有服务并清理数据 (阅后即焚)"""
         try:
+            self.broadcast_service.send_offline() # 主动通知其他用户下线
             self.broadcast_service.stop()
             self.message_service.stop()
             self.db_manager.destroy() # 退出即物理删除数据库文件
-            logger.info("应用服务已停止，本地数据已清理")
+            logger.info("应用服务已停止，下线广播已发送，本地数据已清理")
         except Exception as e:
             logger.error(f"退出清理失败: {e}")

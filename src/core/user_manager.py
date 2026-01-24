@@ -98,6 +98,26 @@ class UserManager:
             logger.error(f"移除用户失败: {e}")
             return False
 
+    def set_user_offline(self, user_id: str) -> bool:
+        """
+        将用户标记为下线
+        
+        Args:
+            user_id: 用户 ID
+        
+        Returns:
+            是否成功
+        """
+        try:
+            if user_id in self.users:
+                self.users[user_id].status = "offline"
+                logger.info(f"用户已标记为下线: {self.users[user_id].username} ({user_id})")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"标记用户下线失败: {e}")
+            return False
+
     def get_user(self, user_id: str) -> Optional[User]:
         """
         获取用户信息

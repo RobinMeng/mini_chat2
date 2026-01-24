@@ -63,13 +63,14 @@ ApplicationWindow {
                             Rectangle {
                                 width: 10; height: 10
                                 radius: 5
-                                color: "green"
+                                color: modelData.status === "online" ? "green" : "#999999"
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 Label {
-                                    text: modelData.username
+                                    text: modelData.username + (modelData.status === "online" ? "" : " (下线)")
                                     font.bold: true
+                                    color: modelData.status === "online" ? "black" : "#888888"
                                 }
                                 Label {
                                     text: modelData.ip
@@ -114,13 +115,15 @@ ApplicationWindow {
                     text: {
                         for (var i = 0; i < backend.onlineUsers.length; i++) {
                             if (backend.onlineUsers[i].is_current) {
-                                return backend.onlineUsers[i].username;
+                                var statusStr = backend.onlineUsers[i].status === "online" ? "" : " (离线)";
+                                return backend.onlineUsers[i].username + statusStr;
                             }
                         }
                         return "请选择联系人开始聊天";
                     }
                     font.pixelSize: 16
                     font.bold: true
+                    color: backend.currentChatUserStatus === "online" ? "black" : "#888888"
                 }
             }
 
@@ -178,8 +181,10 @@ ApplicationWindow {
                         id: messageInput
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        placeholderText: "输入消息 (Ctrl+Enter 发送)..."
+                        placeholderText: backend.currentChatUserStatus === "online" ? "输入消息 (Ctrl+Enter 发送)..." : "该用户已离线，无法发送消息"
+                        enabled: backend.currentChatUserStatus === "online"
                         wrapMode: TextArea.Wrap
+                        opacity: enabled ? 1.0 : 0.5
                         Keys.onPressed: {
                             if (event.key === Qt.Key_Return && event.modifiers & Qt.ControlModifier) {
                                 sendBtn.clicked()
@@ -198,6 +203,7 @@ ApplicationWindow {
                             id: sendBtn
                             text: "发送"
                             highlighted: true
+                            enabled: backend.currentChatUserStatus === "online" && messageInput.text.trim().length > 0
                             onClicked: {
                                 if (messageInput.text.trim()) {
                                     backend.sendMessage(messageInput.text)

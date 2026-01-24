@@ -78,11 +78,39 @@ class BroadcastService:
         
         logger.info("广播服务已停止")
     
+    def _send_broadcast(self, msg_type='HEARTBEAT'):
+        """发送广播包 (心跳或下线通知)"""
+        try:
+            if not self.current_user:
+                return
+            
+            payload = {
+                'type': msg_type,
+                'version': '1.0',
+                'user_id': self.current_user.user_id,
+                'username': self.current_user.username,
+                'hostname': self.current_user.hostname,
+                'ip': self.current_user.ip_address,
+                'tcp_port': self.current_user.tcp_port,
+                'timestamp': int(time.time())
+            }
+            
+            data = json.dumps(payload).encode('utf-8')
+            self.socket.sendto(data, (config.BROADCAST_ADDRESS, config.BROADCAST_PORT))
+            logger.info(f"{msg_type} 广播已发送: {payload}")
+            
+        except Exception as e:
+            logger.error(f"发送广播包失败 ({msg_type}): {e}")
+
+    def send_offline(self):
+        """发送下线通知"""
+        self._send_broadcast('BYE')
+
     def _broadcast_loop(self):
         """广播循环"""
         while self.running:
             try:
-                self._send_heartbeat()
+                self._send_broadcast('HEARTBEAT')
                 time.sleep(config.BROADCAST_INTERVAL)
             except Exception as e:
                 logger.error(f"广播发送失败: {e}")
@@ -97,30 +125,6 @@ class BroadcastService:
                 if self.running:
                     logger.error(f"接收广播失败: {e}")
     
-    def _send_heartbeat(self):
-        """发送心跳包"""
-        try:
-            if not self.current_user:
-                return
-            
-            heartbeat = {
-                'type': 'HEARTBEAT',
-                'version': '1.0',
-                'user_id': self.current_user.user_id,
-                'username': self.current_user.username,
-                'hostname': self.current_user.hostname,
-                'ip': self.current_user.ip_address,
-                'tcp_port': self.current_user.tcp_port,
-                'timestamp': int(time.time())
-            }
-            
-            data = json.dumps(heartbeat).encode('utf-8')
-            self.socket.sendto(data, (config.BROADCAST_ADDRESS, config.BROADCAST_PORT))
-            logger.info(f"心跳包已发送 data:{heartbeat}, addr:{(config.BROADCAST_ADDRESS, config.BROADCAST_PORT)}")
-            
-        except Exception as e:
-            logger.error(f"发送心跳包失败: {e}")
-    
     def _handle_received_data(self, data: bytes, addr: tuple):
         """
         处理接收到的数据
@@ -131,8 +135,9 @@ class BroadcastService:
         """
         try:
             message = json.loads(data.decode('utf-8'))
+            msg_type = message.get('type')
             
-            if self.on_user_discovered and message.get('type') == 'HEARTBEAT':
+            if self.on_user_discovered and msg_type in ['HEARTBEAT', 'BYE']:
                 self.on_user_discovered(message, addr)
                 
         except Exception as e:
