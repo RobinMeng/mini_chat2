@@ -41,11 +41,13 @@ class BroadcastService:
             return
         
         self.running = True
-        
+        logger.info(f"广播服务端口: {config.BROADCAST_PORT}")
         # 创建 UDP socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
         self.socket.bind(('', config.BROADCAST_PORT))
         
         # 启动广播线程

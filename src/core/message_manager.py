@@ -2,6 +2,7 @@
 消息管理器
 """
 import time
+import traceback
 import uuid
 from typing import List, Dict, Optional, Callable
 from src.core.models import Message
@@ -41,9 +42,8 @@ class MessageManager:
             
             logger.info(f"消息已发送: {message.msg_id}")
             return True
-            
         except Exception as e:
-            logger.error(f"发送消息失败: {e}")
+            logger.error(f"发送消息失败: {traceback.format_exc()}")
             return False
     
     def receive_message(self, message: Message) -> bool:

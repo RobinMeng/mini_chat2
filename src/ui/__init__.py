@@ -1,5 +1,5 @@
 """UI 模块"""
 
-from .main_window import MainWindow
+from .backend import QmlBackend
 
-__all__ = ['MainWindow']
+__all__ = ['QmlBackend']

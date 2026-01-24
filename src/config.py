@@ -11,14 +11,14 @@ class Config:
     
     # 路径配置
     BASE_DIR = Path(__file__).parent.parent
-    DATA_DIR = BASE_DIR / "data"
+    DATA_DIR = BASE_DIR / os.getenv("MINICHAT_DATA_DIR", "data")
     LOG_DIR = BASE_DIR / "logs"
     RESOURCE_DIR = BASE_DIR / "resources"
     UI_DIR = BASE_DIR / "ui"
     
     # 网络配置
-    BROADCAST_PORT = 9999
-    TCP_PORT = 10000
+    BROADCAST_PORT = int(os.getenv("MINICHAT_UDP_PORT", 9999))
+    TCP_PORT = int(os.getenv("MINICHAT_TCP_PORT", 10000))
     BROADCAST_INTERVAL = 5  # 秒
     HEARTBEAT_TIMEOUT = 15  # 秒
     USER_REMOVE_TIMEOUT = 30  # 秒

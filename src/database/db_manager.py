@@ -2,6 +2,7 @@
 数据库管理器
 """
 import sqlite3
+import time
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from src.config import config
@@ -19,6 +20,8 @@ class DatabaseManager:
         self.db_path = config.DB_PATH
         self.conn: Optional[sqlite3.Connection] = None
         self.cursor: Optional[sqlite3.Cursor] = None
+        self.connect()
+        self.init_tables()
         
     def connect(self):
         """连接数据库"""
@@ -198,3 +201,38 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"查询数据失败: {e}")
             return None
+
+    def save_message(self, message):
+        """保存消息到数据库"""
+        sql = '''
+            INSERT INTO messages (
+                msg_id, type, from_user_id, from_username,
+                to_user_id, to_username, content, timestamp,
+                is_group, group_id, is_read, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        '''
+        params = (
+            message.msg_id, message.type, message.from_user_id, message.from_username,
+            message.to_user_id, message.to_username, message.content, message.timestamp,
+            1 if message.is_group else 0, message.group_id, 1 if message.is_read else 0,
+            message.status, int(time.time())
+        )
+        return self.execute(sql, params)
+
+    def get_messages(self, user1_id, user2_id, limit=50):
+        """获取两个用户之间的聊天历史"""
+        from src.core.models import Message
+        sql = '''
+            SELECT * FROM messages 
+            WHERE (from_user_id = ? AND to_user_id = ?) 
+               OR (from_user_id = ? AND to_user_id = ?)
+            ORDER BY timestamp DESC
+            LIMIT ?
+        '''
+        params = (user1_id, user2_id, user2_id, user1_id, limit)
+        rows = self.query(sql, params)
+        
+        # 转换回 Message 对象列表，并按时间正序排列（QML 通常从旧到新显示）
+        messages = [Message.from_dict(row) for row in rows]
+        messages.reverse()
+        return messages

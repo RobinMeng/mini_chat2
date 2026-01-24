@@ -34,7 +34,11 @@ class User:
     @classmethod
     def from_dict(cls, data: dict) -> 'User':
         """从字典创建"""
-        return cls(**data)
+        # 过滤掉不存在的字段
+        import dataclasses
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered_data)
 
 
 @dataclass
@@ -73,7 +77,18 @@ class Message:
     @classmethod
     def from_dict(cls, data: dict) -> 'Message':
         """从字典创建"""
-        return cls(**data)
+        # 过滤掉不存在的字段并转换类型
+        import dataclasses
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        
+        # 处理 SQLite 整数转布尔
+        if 'is_group' in filtered_data:
+            filtered_data['is_group'] = bool(filtered_data['is_group'])
+        if 'is_read' in filtered_data:
+            filtered_data['is_read'] = bool(filtered_data['is_read'])
+            
+        return cls(**filtered_data)
 
 
 @dataclass
@@ -118,4 +133,8 @@ class FileTransfer:
     @classmethod
     def from_dict(cls, data: dict) -> 'FileTransfer':
         """从字典创建"""
-        return cls(**data)
+        # 过滤掉不存在的字段
+        import dataclasses
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered_data)

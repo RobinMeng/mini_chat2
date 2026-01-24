@@ -38,7 +38,7 @@ class MessageService:
             return
         
         self.running = True
-        
+        logger.info(f"当前TCP PORT {config.TCP_PORT}")
         try:
             # 创建 TCP socket
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
