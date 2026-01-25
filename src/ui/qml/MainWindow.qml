@@ -25,8 +25,18 @@ ApplicationWindow {
 
     Connections {
         target: backend
-        function onNewMessageReceived(msg) { chatList.positionViewAtEnd() }
-        function onNewMessageSent(msg) { chatList.positionViewAtEnd() }
+        function onNewMessageReceived(msg) { 
+            // 延迟滚动，确保 ListView 渲染完成
+            Qt.callLater(function() {
+                chatList.positionViewAtEnd()
+            })
+        }
+        function onNewMessageSent(msg) { 
+            // 延迟滚动，确保 ListView 渲染完成
+            Qt.callLater(function() {
+                chatList.positionViewAtEnd()
+            })
+        }
     }
 
     // 主容器（圆角窗口）
@@ -441,6 +451,17 @@ ApplicationWindow {
                         bottomMargin: Theme.spacingXLarge
                         leftMargin: Theme.spacingXLarge
                         rightMargin: Theme.spacingXLarge
+                        
+                        // 调试：监听 count 变化
+                        onCountChanged: {
+                            console.log("[QML ListView] count 变化: ", count)
+                        }
+                        
+                        Component.onCompleted: {
+                            console.log("[QML ListView] 初始化完成，model:", model)
+                            console.log("[QML ListView] 初始 count:", count)
+                        }
+                        
                         delegate: ColumnLayout {
                             width: chatList.width - 40
                             spacing: Theme.spacingSmall

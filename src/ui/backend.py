@@ -3,84 +3,18 @@ QML 后端桥接类 (Controller)
 实现 MVC 架构中的控制层
 """
 from datetime import datetime
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty, QVariant, QAbstractListModel, Qt
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty, QVariant
 from src.core.models import User, Message
 from src.core.user_manager import UserManager
 from src.core.message_manager import MessageManager
 from src.network.broadcast import BroadcastService
 from src.network.message import MessageService
 from src.database.db_manager import DatabaseManager
+from src.ui.models import MessageListModel
 from src.utils.logger import get_logger
 import traceback
 
 logger = get_logger(__name__)
-
-class MessageListModel(QAbstractListModel):
-    """消息列表模型，用于 QML 高效渲染"""
-    
-    # 定义 Roles
-    ContentRole = Qt.UserRole + 1
-    FromUserIdRole = Qt.UserRole + 2
-    FromUsernameRole = Qt.UserRole + 3
-    TimestampRole = Qt.UserRole + 4
-    IsMineRole = Qt.UserRole + 5
-    TypeRole = Qt.UserRole + 6
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._messages = []
-        self._current_user_id = ""
-
-    def set_current_user_id(self, user_id):
-        self._current_user_id = user_id
-        self.layoutChanged.emit()
-
-    def rowCount(self, parent=None):
-        return len(self._messages)
-
-    def data(self, index, role):
-        if not index.isValid() or index.row() >= len(self._messages):
-            return QVariant()
-        
-        msg = self._messages[index.row()]
-        
-        if role == self.ContentRole:
-            return msg.get('content', '')
-        elif role == self.FromUserIdRole:
-            return msg.get('from_user_id', '')
-        elif role == self.FromUsernameRole:
-            return msg.get('from_username', '')
-        elif role == self.TimestampRole:
-            return msg.get('timestamp', 0)
-        elif role == self.IsMineRole:
-            return str(msg.get('from_user_id')) == str(self._current_user_id)
-        elif role == self.TypeRole:
-            return msg.get('type', 'TEXT')
-            
-        return QVariant()
-
-    def roleNames(self):
-        """映射 Role 名到 QML 变量名"""
-        return {
-            self.ContentRole: b"content",
-            self.FromUserIdRole: b"from_user_id",
-            self.FromUsernameRole: b"from_username",
-            self.TimestampRole: b"timestamp",
-            self.IsMineRole: b"is_mine",
-            self.TypeRole: b"msg_type"
-        }
-
-    def set_messages(self, messages):
-        """全量更新消息"""
-        self.beginResetModel()
-        self._messages = messages
-        self.endResetModel()
-
-    def add_message(self, message_dict):
-        """增量添加消息"""
-        self.beginInsertRows(self.index(len(self._messages)), len(self._messages), len(self._messages))
-        self._messages.append(message_dict)
-        self.endInsertRows()
 
 class QmlBackend(QObject):
     """QML 与 Python 交互的中转类"""
@@ -100,8 +34,8 @@ class QmlBackend(QObject):
         self.message_manager = MessageManager()
         self.db_manager = DatabaseManager()
             
-        # 初始化消息列表模型
-        self._message_model = MessageListModel()
+        # 初始化消息列表模型（设置 parent 以确保信号正确传递）
+        self._message_model = MessageListModel(self)
             
         # 初始化当前用户
         self.user_manager.initialize_current_user()
@@ -180,7 +114,9 @@ class QmlBackend(QObject):
     @pyqtSlot(str)
     def selectUser(self, user_id):
         """用户点击列表，选择聊天对象"""
+        logger.info(f"👆 用户点击选择聊天对象: {user_id}")
         self._current_chat_user_id = user_id
+        logger.info(f"📌 当前聊天对象已更新为: {self._current_chat_user_id}")
         
         # 标记来自该用户的所有消息为已读
         self.db_manager.mark_as_read(user_id, self.user_manager.current_user.user_id)
@@ -189,17 +125,25 @@ class QmlBackend(QObject):
         if user:
             logger.info(f"切换聊天对象到: {user.username}")
             # 加载历史消息
+            logger.info(f"[DEBUG] 当前用户ID: {self.user_manager.current_user.user_id}")
+            logger.info(f"[DEBUG] 目标用户ID: {user_id}")
             history = self.db_manager.get_messages(
                 self.user_manager.current_user.user_id,
                 user_id,
                 limit=50
             )
+            logger.info(f"[DEBUG] 查询返回的 history 类型: {type(history)}, 长度: {len(history)}")
             # 转换为字典列表
             history_list = []
             for msg in history:
-                history_list.append(msg.to_dict())
-                            
+                msg_dict = msg.to_dict()
+                logger.info(f"[DEBUG] 消息: {msg_dict.get('msg_id')} - {msg_dict.get('content')[:20]}...")
+                history_list.append(msg_dict)
+            
+            logger.info(f"加载了 {len(history_list)} 条历史消息")
+            logger.info(f"[DEBUG] 准备调用 set_messages")
             self._message_model.set_messages(history_list)
+            logger.info(f"[DEBUG] set_messages 调用完成")
             self.userListChanged.emit() # 更新选中状态
             
     @pyqtSlot(str)
@@ -269,14 +213,35 @@ class QmlBackend(QObject):
             logger.debug(f"收到原始消息数据: {message_data}")
             message = Message.from_dict(message_data)
             
-            # 如果是当前正在聊天的用户发来的消息，立即标记为已读并推送到界面
-            if message.from_user_id == self._current_chat_user_id:
-                message.is_read = True
-                self._message_model.add_message(message.to_dict())
-                self.newMessageReceived.emit(message.to_dict())
+            # 诊断日志
+            logger.info(f"[接收消息] 发送者: {message.from_user_id}")
+            logger.info(f"[接收消息] 当前聊天对象: {self._current_chat_user_id}")
+            logger.info(f"[接收消息] ID类型: 发送者={type(message.from_user_id).__name__}, 当前={type(self._current_chat_user_id).__name__ if self._current_chat_user_id else 'None'}")
+            logger.info(f"[接收消息] 是否匹配: {message.from_user_id == self._current_chat_user_id}")
             
-            self.db_manager.save_message(message)
-            self.userListChanged.emit() # 无论是否当前聊天，都触发列表刷新以更新未读数
+            # 先保存到数据库（默认 is_read=False）
+            # 注意：如果消息已存在，忽略错误
+            save_result = self.db_manager.save_message(message)
+            if not save_result:
+                logger.warning(f"消息已存在或保存失败: {message.msg_id}，但仍继续处理")
+            
+            # 如果是当前正在聊天的用户发来的消息
+            if message.from_user_id == self._current_chat_user_id:
+                logger.info(f"✅ 匹配当前聊天对象，立即显示消息")
+                # 立即标记为已读
+                self.db_manager.mark_as_read(message.from_user_id, self.user_manager.current_user.user_id)
+                # 添加到界面
+                message.is_read = True  # 同步 UI 层的状态
+                logger.info(f"[Backend] 准备调用 add_message，当前 Model 消息数: {len(self._message_model._messages)}")
+                self._message_model.add_message(message.to_dict())
+                logger.info(f"[Backend] add_message 调用完成，新的 Model 消息数: {len(self._message_model._messages)}")
+                # 触发滚动信号
+                self.newMessageReceived.emit(message.to_dict())
+            else:
+                logger.info(f"❌ 不是当前聊天对象，不自动显示")
+            
+            # 更新用户列表（刷新未读数）
+            self.userListChanged.emit()
             
         except Exception as e:
             logger.error(f"处理接收消息失败: {e}")
