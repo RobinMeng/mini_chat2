@@ -6,10 +6,16 @@ import QtGraphicalEffects 1.15
 ApplicationWindow {
     id: window
     visible: true
-    width: 1000
-    height: 700
+    width: Theme.windowWidth
+    height: Theme.windowHeight
     flags: Qt.Window | Qt.FramelessWindowHint
-    color: "white"
+    color: "transparent"
+    
+    // 确保窗口背景完全透明（关键：支持圆角）
+    background: Rectangle {
+        color: "transparent"
+        radius: Theme.radiusWindow
+    }
 
     // 加载 FontAwesome 图标字体
     FontLoader {
@@ -17,344 +23,518 @@ ApplicationWindow {
         source: "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/fonts/fontawesome-webfont.ttf"
     }
 
-    readonly property color colPrimary: "#3b82f6"
-    readonly property color colCharcoal: "#1a1a1a"
-    readonly property color colSidebar: "#f9fafb"
-    readonly property color colSentBubble: "#f0f7ff"
-    readonly property color colReceivedBubble: "#ffffff"
-    readonly property color colOnline: "#10b981"
-    readonly property color colOffline: "#94a3b8"
-
     Connections {
         target: backend
         function onNewMessageReceived(msg) { chatList.positionViewAtEnd() }
         function onNewMessageSent(msg) { chatList.positionViewAtEnd() }
     }
 
-    RowLayout {
+    // 主容器（圆角窗口）
+    Rectangle {
+        id: mainContainer
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: 0
+        radius: Theme.radiusWindow
+        color: Theme.bgWhite
+        clip: true
+        antialiasing: true
+        smooth: true
+        
+        // 使用 layer 来确保圆角正确渲染
+        layer.enabled: true
+        layer.smooth: true
+        layer.effect: OpacityMask {
+            maskSource: Rectangle {
+                width: mainContainer.width
+                height: mainContainer.height
+                radius: Theme.radiusWindow
+                antialiasing: true
+            }
+        }
 
-        // --- 1. Sidebar ---
-        Rectangle {
-            Layout.fillHeight: true
-            Layout.preferredWidth: 70
-            color: "white"
-            border.color: "#f0f0f0"
-            DragHandler { onActiveChanged: if (active) window.startSystemMove() }
+        // 全局顶部拖动区域（覆盖整个窗口上部）
+        MouseArea {
+            id: globalDragArea
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: Theme.headerHeight
+            z: 1
+            onPressed: window.startSystemMove()
+            cursorShape: Qt.ArrowCursor
+            propagateComposedEvents: true
+        }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.topMargin: 15
-                anchors.bottomMargin: 20
-                spacing: 25
+        RowLayout {
+            anchors.fill: parent
+            spacing: 0
 
-                RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 8
-                    Rectangle { 
-                        width: 12; height: 12; radius: 6; color: "#ff5f56" 
-                        MouseArea { anchors.fill: parent; onClicked: window.close(); cursorShape: Qt.PointingHandCursor }
+            // --- 1. Sidebar ---
+            Rectangle {
+                Layout.fillHeight: true
+                Layout.preferredWidth: Theme.sidebarWidth
+                color: Theme.bgWhite
+                border.color: Theme.borderLight
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.topMargin: Theme.spacingLarge
+                    anchors.bottomMargin: Theme.spacingXLarge
+                    spacing: Theme.spacingXXLarge
+
+                    // 窗口控制按钮区域
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 30
+                        color: "transparent"
+                        z: 2
+                        
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: 8
+                            Rectangle { 
+                                width: Theme.iconSizeSmall
+                                height: Theme.iconSizeSmall
+                                radius: Theme.radiusSmall
+                                color: Theme.windowClose
+                                scale: closeMouseArea.containsMouse ? 1.1 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "×"
+                                    color: "#5a0000"
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    visible: closeMouseArea.containsMouse
+                                }
+                                MouseArea { 
+                                    id: closeMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: window.close()
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+                            }
+                            Rectangle { 
+                                width: Theme.iconSizeSmall
+                                height: Theme.iconSizeSmall
+                                radius: Theme.radiusSmall
+                                color: Theme.windowMinimize
+                                scale: minimizeMouseArea.containsMouse ? 1.1 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "−"
+                                    color: "#855a00"
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    visible: minimizeMouseArea.containsMouse
+                                }
+                                MouseArea { 
+                                    id: minimizeMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: window.showMinimized()
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+                            }
+                            Rectangle { 
+                                width: Theme.iconSizeSmall
+                                height: Theme.iconSizeSmall
+                                radius: Theme.radiusSmall
+                                color: Theme.windowMaximize
+                                scale: maximizeMouseArea.containsMouse ? 1.1 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "＋"
+                                    color: "#006b2e"
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    visible: maximizeMouseArea.containsMouse
+                                }
+                                MouseArea { 
+                                    id: maximizeMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+                            }
+                        }
                     }
-                    Rectangle { 
-                        width: 12; height: 12; radius: 6; color: "#ffbd2e" 
-                        MouseArea { anchors.fill: parent; onClicked: window.showMinimized(); cursorShape: Qt.PointingHandCursor }
+
+                    Rectangle {
+                        Layout.topMargin: Theme.spacingMedium
+                        Layout.alignment: Qt.AlignHCenter
+                        width: Theme.avatarMedium
+                        height: Theme.avatarMedium
+                        radius: Theme.radiusLarge
+                        color: Theme.primary
+                        Text { 
+                            text: "M"
+                            color: Theme.textWhite
+                            anchors.centerIn: parent
+                            font.bold: true
+                            font.pixelSize: Theme.fontSizeLogo
+                        }
                     }
-                    Rectangle { width: 12; height: 12; radius: 6; color: "#27c93f" }
-                }
 
-                Rectangle {
-                    Layout.topMargin: 10
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 40
-                    height: 40
-                    radius: 12
-                    color: colPrimary
-                    Text { text: "M"; color: "white"; anchors.centerIn: parent; font.bold: true; font.pixelSize: 20 }
-                }
-
-                Repeater {
-                    // FontAwesome Unicode: chat(\uf075), group(\uf0c0), folder(\uf07b), settings(\uf013)
-                    model: ["\uf075", "\uf0c0", "\uf07b", "\uf013"]
+                    Repeater {
+                        model: [Theme.iconChat, Theme.iconGroup, Theme.iconFolder, Theme.iconSettings]
+                        Rectangle {
+                            Layout.alignment: Qt.AlignHCenter
+                            width: Theme.buttonMedium
+                            height: Theme.buttonMedium
+                            radius: Theme.radiusLarge
+                            color: index === 0 ? Theme.bgHover : (iconMouseArea.containsMouse ? Theme.bgHover : Theme.bgTransparent)
+                            scale: iconMouseArea.containsMouse ? 1.05 : 1.0
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 100 } }
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData
+                                font.family: fontAwesome.name
+                                font.pixelSize: Theme.iconSizeMedium
+                                color: index === 0 ? Theme.primary : Theme.textSecondary
+                            }
+                            MouseArea {
+                                id: iconMouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                            }
+                        }
+                    }
+                    Item { Layout.fillHeight: true }
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        width: 45
-                        height: 45
-                        radius: 12
-                        color: index === 0 ? "#f0f7ff" : "transparent"
-                        Text {
+                        width: Theme.avatarMedium
+                        height: Theme.avatarMedium
+                        radius: Theme.radiusLarge
+                        color: Theme.bgAvatar
+                        Text { 
+                            text: backend.currentUserName.charAt(0)
                             anchors.centerIn: parent
-                            text: modelData
-                            font.family: fontAwesome.name
-                            font.pixelSize: 18
-                            color: index === 0 ? colPrimary : "#94a3b8"
+                            font.bold: true
                         }
                     }
                 }
-                Item { Layout.fillHeight: true }
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 40
-                    height: 40
-                    radius: 12
-                    color: "#e2e8f0"
-                    Text { text: backend.currentUserName.charAt(0); anchors.centerIn: parent; font.bold: true }
-                }
             }
-        }
 
-        // --- 2. Contact List ---
-        Rectangle {
-            Layout.fillHeight: true
-            Layout.preferredWidth: 280
-            color: colSidebar
-            border.color: "#f0f0f0"
+            // --- 2. Contact List ---
+            Rectangle {
+                Layout.fillHeight: true
+                Layout.preferredWidth: Theme.contactListWidth
+                color: Theme.sidebarBg
+                border.color: Theme.borderLight
 
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
-                Label { text: "Messages"; font.pixelSize: 20; font.bold: true; padding: 20; color: colCharcoal }
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.margins: 15
-                    height: 40
-                    radius: 10
-                    color: "white"
-                    border.color: "#e5e7eb"
-                    Text { anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter; text: "Search..."; color: "#94a3b8" }
-                }
-                ListView {
-                    id: userListView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    model: backend.onlineUsers
-                    clip: true
-                    spacing: 5
-                    delegate: ItemDelegate {
-                        width: userListView.width
-                        height: 70
-                        background: Rectangle {
-                            color: modelData.is_current ? "white" : "transparent"
-                            anchors.fill: parent
-                            anchors.margins: 5
-                            radius: 15
-                            border.color: modelData.is_current ? "#e5e7eb" : "transparent"
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 0
+                    Label { 
+                        text: "Messages"
+                        font.pixelSize: Theme.fontSizeTitle
+                        font.bold: true
+                        padding: Theme.spacingXLarge
+                        color: Theme.textPrimary
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.margins: Theme.spacingLarge
+                        height: Theme.searchBoxHeight
+                        radius: Theme.radiusMedium
+                        color: Theme.bgWhite
+                        border.color: Theme.borderGray
+                        Text { 
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.spacingMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Search..."
+                            color: Theme.textPlaceholder
                         }
-                        onClicked: backend.selectUser(modelData.user_id)
-                        contentItem: RowLayout {
-                            spacing: 12
-                            Rectangle {
-                                width: 45
-                                height: 45
-                                radius: 12
-                                color: "#e2e8f0"
-                                Text { 
-                                    anchors.centerIn: parent
-                                    text: modelData.username.charAt(0)
-                                    font.bold: true 
+                    }
+                    ListView {
+                        id: userListView
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: backend.onlineUsers
+                        clip: true
+                        spacing: Theme.spacingSmall
+                        delegate: ItemDelegate {
+                            width: userListView.width
+                            height: Theme.userItemHeight
+                            hoverEnabled: true
+                            background: Rectangle {
+                                color: modelData.is_current ? Theme.bgWhite : (parent.hovered ? "#f5f5f5" : Theme.bgTransparent)
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingSmall
+                                radius: Theme.radiusXLarge
+                                border.color: modelData.is_current ? Theme.borderActive : Theme.bgTransparent
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                            }
+                            onClicked: backend.selectUser(modelData.user_id)
+                            contentItem: RowLayout {
+                                spacing: 12
+                                Rectangle {
+                                    width: Theme.avatarLarge
+                                    height: Theme.avatarLarge
+                                    radius: Theme.radiusLarge
+                                    color: Theme.bgAvatar
+                                    Text { 
+                                        anchors.centerIn: parent
+                                        text: modelData.username.charAt(0)
+                                        font.bold: true 
+                                    }
+                                    Rectangle {
+                                        width: Theme.iconSizeSmall
+                                        height: Theme.iconSizeSmall
+                                        radius: Theme.radiusSmall
+                                        color: modelData.status === "online" ? Theme.online : Theme.offline
+                                        border.color: Theme.textWhite
+                                        border.width: Theme.borderWidthMedium
+                                        anchors.right: parent.right
+                                        anchors.bottom: parent.bottom
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Label { 
+                                        text: modelData.username
+                                        font.bold: true
+                                        font.pixelSize: Theme.fontSizeNormal
+                                        color: modelData.status === "online" ? Theme.textPrimary : Theme.textSecondary
+                                    }
+                                    Label { 
+                                        text: modelData.status === "online" ? "Active now" : "Offline"
+                                        font.pixelSize: Theme.fontSizeMedium
+                                        color: Theme.textSecondary
+                                    }
                                 }
                                 Rectangle {
-                                    width: 12
-                                    height: 12
-                                    radius: 6
-                                    color: modelData.status === "online" ? colOnline : colOffline
-                                    border.color: "white"
-                                    border.width: 2
-                                    anchors.right: parent.right
-                                    anchors.bottom: parent.bottom
-                                }
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Label { 
-                                    text: modelData.username
-                                    font.bold: true
-                                    font.pixelSize: 14
-                                    color: modelData.status === "online" ? colCharcoal : "#94a3b8" 
-                                }
-                                Label { 
-                                    text: modelData.status === "online" ? "Active now" : "Offline"
-                                    font.pixelSize: 11
-                                    color: "#94a3b8" 
-                                }
-                            }
-                            Rectangle {
-                                visible: modelData.unread_count > 0
-                                width: 20
-                                height: 20
-                                radius: 10
-                                color: "#ff4d4f"
-                                Label { 
-                                    anchors.centerIn: parent
-                                    text: modelData.unread_count
-                                    color: "white"
-                                    font.pixelSize: 10
-                                    font.bold: true 
+                                    visible: modelData.unread_count > 0
+                                    width: Theme.iconSizeLarge
+                                    height: Theme.iconSizeLarge
+                                    radius: Theme.radiusMedium
+                                    color: Theme.unreadBadge
+                                    Label { 
+                                        anchors.centerIn: parent
+                                        text: modelData.unread_count
+                                        color: Theme.textWhite
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.bold: true
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // --- 3. Chat Main ---
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            color: "white"
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 75
-                    color: "white"
-                    border.color: "#f0f0f0"
-                    DragHandler { onActiveChanged: if (active) window.startSystemMove() }
-                    RowLayout {
-                        anchors.fill: parent; anchors.leftMargin: 25; anchors.rightMargin: 25
-                        ColumnLayout {
-                            spacing: 2
-                            Label {
-                                text: {
-                                    for (var i = 0; i < backend.onlineUsers.length; i++) 
-                                        if (backend.onlineUsers[i].is_current) return backend.onlineUsers[i].username;
-                                    return "Select a contact";
-                                }
-                                font.pixelSize: 16; font.bold: true; color: colCharcoal
-                            }
-                            RowLayout {
-                                visible: backend.currentChatUserStatus === "online"
-                                Rectangle { width: 8; height: 8; radius: 4; color: colOnline }
-                                Label { text: "Online"; font.pixelSize: 11; color: colOnline; font.bold: true }
-                            }
-                        }
-                        Item { Layout.fillWidth: true }
-                        RowLayout {
-                            spacing: 20
-                            Text { 
-                                text: "\uf095" // phone
-                                font.family: fontAwesome.name
-                                font.pixelSize: 18
-                                color: "#94a3b8" 
-                            }
-                            Text { 
-                                text: "\uf03d" // video-camera
-                                font.family: fontAwesome.name
-                                font.pixelSize: 18
-                                color: "#94a3b8" 
-                            }
-                            Text { 
-                                text: "\uf142" // ellipsis-v
-                                font.family: fontAwesome.name
-                                font.pixelSize: 18
-                                color: "#94a3b8" 
-                            }
-                        }
-                    }
-                }
-                ListView {
-                    id: chatList
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    model: backend.messageModel
-                    clip: true
-                    spacing: 15
-                    topMargin: 20
-                    bottomMargin: 20
-                    leftMargin: 20
-                    rightMargin: 20
-                    delegate: ColumnLayout {
-                        width: chatList.width - 40
-                        spacing: 5
-                        RowLayout {
-                            Layout.alignment: is_mine ? Qt.AlignRight : Qt.AlignLeft
-                            layoutDirection: is_mine ? Qt.RightToLeft : Qt.LeftToRight
-                            spacing: 10
-                            Rectangle {
-                                visible: !is_mine
-                                width: 35
-                                height: 35
-                                radius: 10
-                                color: "#e2e8f0"
-                                Text { 
-                                    anchors.centerIn: parent
-                                    text: from_username.charAt(0)
-                                    font.pixelSize: 12 
-                                }
-                            }
-                            Rectangle {
-                                Layout.maximumWidth: chatList.width * 0.6
-                                width: msgText.implicitWidth + 30
-                                height: msgText.implicitHeight + 24
-                                radius: 18
-                                color: is_mine ? colPrimary : colReceivedBubble
-                                border.color: is_mine ? colPrimary : "#f0f0f0"
-                                Text { 
-                                    id: msgText
-                                    text: content
-                                    anchors.centerIn: parent
-                                    color: is_mine ? "white" : colCharcoal
-                                    font.pixelSize: 14
-                                    wrapMode: Text.Wrap
-                                    width: parent.width - 30 
-                                }
-                            }
-                        }
-                        Label {
-                            Layout.alignment: is_mine ? Qt.AlignRight : Qt.AlignLeft
-                            text: Qt.formatDateTime(new Date(timestamp * 1000), "hh:mm")
-                            font.pixelSize: 10
-                            color: "#94a3b8"
-                        }
-                    }
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 90
-                    color: "white"
+            // --- 3. Chat Main ---
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: Theme.bgWhite
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 0
                     Rectangle {
-                        anchors.fill: parent
-                        anchors.margins: 15
-                        radius: 15
-                        color: "#f8fafc"
-                        border.color: "#e2e8f0"
+                        Layout.fillWidth: true
+                        height: Theme.headerHeight
+                        color: Theme.bgWhite
+                        border.color: Theme.borderLight
+                        
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 15
-                            anchors.rightMargin: 8
-                            TextField {
-                                id: messageInput
-                                Layout.fillWidth: true
-                                placeholderText: backend.currentChatUserStatus === "online" ? "Write a message..." : "User is offline"
-                                enabled: backend.currentChatUserStatus === "online"
-                                background: Item {}
-                                color: colCharcoal
-                                font.pixelSize: 14
-                                onAccepted: sendBtn.clicked()
+                            anchors.leftMargin: Theme.spacingXXLarge
+                            anchors.rightMargin: Theme.spacingXXLarge
+                            z: 2
+                            ColumnLayout {
+                                spacing: 2
+                                Label {
+                                    text: {
+                                        for (var i = 0; i < backend.onlineUsers.length; i++) 
+                                            if (backend.onlineUsers[i].is_current) return backend.onlineUsers[i].username;
+                                        return "Select a contact";
+                                    }
+                                    font.pixelSize: Theme.fontSizeLarge
+                                    font.bold: true
+                                    color: Theme.textPrimary
+                                }
+                                RowLayout {
+                                    visible: backend.currentChatUserStatus === "online"
+                                    Rectangle { 
+                                        width: 8
+                                        height: 8
+                                        radius: 4
+                                        color: Theme.online
+                                    }
+                                    Label { 
+                                        text: "Online"
+                                        font.pixelSize: Theme.fontSizeMedium
+                                        color: Theme.online
+                                        font.bold: true
+                                    }
+                                }
                             }
-                            Button {
-                                id: sendBtn
-                                Layout.preferredWidth: 40
-                                Layout.preferredHeight: 40
-                                enabled: backend.currentChatUserStatus === "online" && messageInput.text.trim().length > 0
-                                contentItem: Text { 
-                                    text: "\uf1d8" // paper-plane
-                                    color: "white"
+                            Item { Layout.fillWidth: true }
+                            RowLayout {
+                                spacing: Theme.spacingXLarge
+                                z: 3
+                                Text { 
+                                    text: Theme.iconPhone
                                     font.family: fontAwesome.name
-                                    font.pixelSize: 18
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter 
+                                    font.pixelSize: Theme.iconSizeMedium
+                                    color: phoneMouseArea.containsMouse ? Theme.primary : Theme.textSecondary
+                                    scale: phoneMouseArea.containsMouse ? 1.1 : 1.0
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+                                    MouseArea {
+                                        id: phoneMouseArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                    }
                                 }
-                                background: Rectangle { 
-                                    radius: 10
-                                    color: parent.enabled ? colPrimary : "#cbd5e1" 
+                                Text { 
+                                    text: Theme.iconVideo
+                                    font.family: fontAwesome.name
+                                    font.pixelSize: Theme.iconSizeMedium
+                                    color: videoMouseArea.containsMouse ? Theme.primary : Theme.textSecondary
+                                    scale: videoMouseArea.containsMouse ? 1.1 : 1.0
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+                                    MouseArea {
+                                        id: videoMouseArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                    }
                                 }
-                                onClicked: { 
-                                    backend.sendMessage(messageInput.text)
-                                    messageInput.clear() 
+                                Text { 
+                                    text: Theme.iconMore
+                                    font.family: fontAwesome.name
+                                    font.pixelSize: Theme.iconSizeMedium
+                                    color: moreMouseArea.containsMouse ? Theme.primary : Theme.textSecondary
+                                    scale: moreMouseArea.containsMouse ? 1.1 : 1.0
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+                                    MouseArea {
+                                        id: moreMouseArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ListView {
+                        id: chatList
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: backend.messageModel
+                        clip: true
+                        spacing: Theme.spacingLarge
+                        topMargin: Theme.spacingXLarge
+                        bottomMargin: Theme.spacingXLarge
+                        leftMargin: Theme.spacingXLarge
+                        rightMargin: Theme.spacingXLarge
+                        delegate: ColumnLayout {
+                            width: chatList.width - 40
+                            spacing: Theme.spacingSmall
+                            RowLayout {
+                                Layout.alignment: is_mine ? Qt.AlignRight : Qt.AlignLeft
+                                layoutDirection: is_mine ? Qt.RightToLeft : Qt.LeftToRight
+                                spacing: 10
+                                Rectangle {
+                                    visible: !is_mine
+                                    width: Theme.avatarSmall
+                                    height: Theme.avatarSmall
+                                    radius: Theme.radiusMedium
+                                    color: Theme.bgAvatar
+                                    Text { 
+                                        anchors.centerIn: parent
+                                        text: from_username.charAt(0)
+                                        font.pixelSize: 12
+                                    }
+                                }
+                                Rectangle {
+                                    Layout.maximumWidth: chatList.width * 0.6
+                                    width: msgText.implicitWidth + 30
+                                    height: msgText.implicitHeight + 24
+                                    radius: Theme.radiusBubble
+                                    color: is_mine ? Theme.primary : Theme.receivedBubble
+                                    border.color: is_mine ? Theme.primary : Theme.borderLight
+                                    Text { 
+                                        id: msgText
+                                        text: content
+                                        anchors.centerIn: parent
+                                        color: is_mine ? Theme.textWhite : Theme.textPrimary
+                                        font.pixelSize: Theme.fontSizeNormal
+                                        wrapMode: Text.Wrap
+                                        width: parent.width - 30
+                                    }
+                                }
+                            }
+                            Label {
+                                Layout.alignment: is_mine ? Qt.AlignRight : Qt.AlignLeft
+                                text: Qt.formatDateTime(new Date(timestamp * 1000), "hh:mm")
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.textSecondary
+                            }
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: Theme.inputAreaHeight
+                        color: Theme.bgWhite
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingLarge
+                            radius: Theme.radiusXLarge
+                            color: Theme.bgInputArea
+                            border.color: Theme.bgAvatar
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Theme.spacingLarge
+                                anchors.rightMargin: 8
+                                TextField {
+                                    id: messageInput
+                                    Layout.fillWidth: true
+                                    placeholderText: backend.currentChatUserStatus === "online" ? "Write a message..." : "User is offline"
+                                    enabled: backend.currentChatUserStatus === "online"
+                                    background: Item {}
+                                    color: Theme.textPrimary
+                                    font.pixelSize: Theme.fontSizeNormal
+                                    onAccepted: sendBtn.clicked()
+                                }
+                                Button {
+                                    id: sendBtn
+                                    Layout.preferredWidth: Theme.buttonSmall
+                                    Layout.preferredHeight: Theme.buttonSmall
+                                    enabled: backend.currentChatUserStatus === "online" && messageInput.text.trim().length > 0
+                                    scale: hovered ? 1.05 : 1.0
+                                    hoverEnabled: true
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+                                    contentItem: Text { 
+                                        text: Theme.iconSend
+                                        color: Theme.textWhite
+                                        font.family: fontAwesome.name
+                                        font.pixelSize: Theme.iconSizeMedium
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle { 
+                                        radius: Theme.radiusMedium
+                                        color: parent.enabled ? (parent.hovered ? "#2563eb" : Theme.primary) : Theme.offline
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                    }
+                                    onClicked: { 
+                                        backend.sendMessage(messageInput.text)
+                                        messageInput.clear()
+                                    }
                                 }
                             }
                         }
