@@ -10,7 +10,7 @@ ApplicationWindow {
     height: Theme.windowHeight
     flags: Qt.Window | Qt.FramelessWindowHint
     color: "transparent"
-    
+
     // 确保窗口背景完全透明（关键：支持圆角）
     background: Rectangle {
         color: "transparent"
@@ -25,15 +25,16 @@ ApplicationWindow {
 
     Connections {
         target: backend
-        function onNewMessageReceived(msg) { 
-            // 延迟滚动，确保 ListView 渲染完成
-            Qt.callLater(function() {
+        function onNewMessageReceived(msg) {
+           Qt.callLater(function() {
+                chatList.forceLayout()
                 chatList.positionViewAtEnd()
             })
         }
-        function onNewMessageSent(msg) { 
+        function onNewMessageSent(msg) {
             // 延迟滚动，确保 ListView 渲染完成
             Qt.callLater(function() {
+                chatList.forceLayout()
                 chatList.positionViewAtEnd()
             })
         }
@@ -49,7 +50,7 @@ ApplicationWindow {
         clip: true
         antialiasing: true
         smooth: true
-        
+
         // 使用 layer 来确保圆角正确渲染
         layer.enabled: true
         layer.smooth: true
@@ -98,11 +99,11 @@ ApplicationWindow {
                         Layout.preferredHeight: 30
                         color: "transparent"
                         z: 2
-                        
+
                         RowLayout {
                             anchors.centerIn: parent
                             spacing: 8
-                            Rectangle { 
+                            Rectangle {
                                 width: Theme.iconSizeSmall
                                 height: Theme.iconSizeSmall
                                 radius: Theme.radiusSmall
@@ -117,7 +118,7 @@ ApplicationWindow {
                                     font.bold: true
                                     visible: closeMouseArea.containsMouse
                                 }
-                                MouseArea { 
+                                MouseArea {
                                     id: closeMouseArea
                                     anchors.fill: parent
                                     hoverEnabled: true
@@ -125,7 +126,7 @@ ApplicationWindow {
                                     cursorShape: Qt.PointingHandCursor
                                 }
                             }
-                            Rectangle { 
+                            Rectangle {
                                 width: Theme.iconSizeSmall
                                 height: Theme.iconSizeSmall
                                 radius: Theme.radiusSmall
@@ -140,7 +141,7 @@ ApplicationWindow {
                                     font.bold: true
                                     visible: minimizeMouseArea.containsMouse
                                 }
-                                MouseArea { 
+                                MouseArea {
                                     id: minimizeMouseArea
                                     anchors.fill: parent
                                     hoverEnabled: true
@@ -148,7 +149,7 @@ ApplicationWindow {
                                     cursorShape: Qt.PointingHandCursor
                                 }
                             }
-                            Rectangle { 
+                            Rectangle {
                                 width: Theme.iconSizeSmall
                                 height: Theme.iconSizeSmall
                                 radius: Theme.radiusSmall
@@ -163,7 +164,7 @@ ApplicationWindow {
                                     font.bold: true
                                     visible: maximizeMouseArea.containsMouse
                                 }
-                                MouseArea { 
+                                MouseArea {
                                     id: maximizeMouseArea
                                     anchors.fill: parent
                                     hoverEnabled: true
@@ -180,7 +181,7 @@ ApplicationWindow {
                         height: Theme.avatarMedium
                         radius: Theme.radiusLarge
                         color: Theme.primary
-                        Text { 
+                        Text {
                             text: "M"
                             color: Theme.textWhite
                             anchors.centerIn: parent
@@ -222,7 +223,7 @@ ApplicationWindow {
                         height: Theme.avatarMedium
                         radius: Theme.radiusLarge
                         color: Theme.bgAvatar
-                        Text { 
+                        Text {
                             text: backend.currentUserName.charAt(0)
                             anchors.centerIn: parent
                             font.bold: true
@@ -241,7 +242,7 @@ ApplicationWindow {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 0
-                    Label { 
+                    Label {
                         text: "Messages"
                         font.pixelSize: Theme.fontSizeTitle
                         font.bold: true
@@ -255,7 +256,7 @@ ApplicationWindow {
                         radius: Theme.radiusMedium
                         color: Theme.bgWhite
                         border.color: Theme.borderGray
-                        Text { 
+                        Text {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.spacingMedium
                             anchors.verticalCenter: parent.verticalCenter
@@ -290,10 +291,10 @@ ApplicationWindow {
                                     height: Theme.avatarLarge
                                     radius: Theme.radiusLarge
                                     color: Theme.bgAvatar
-                                    Text { 
+                                    Text {
                                         anchors.centerIn: parent
                                         text: modelData.username.charAt(0)
-                                        font.bold: true 
+                                        font.bold: true
                                     }
                                     Rectangle {
                                         width: Theme.iconSizeSmall
@@ -309,13 +310,13 @@ ApplicationWindow {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 2
-                                    Label { 
+                                    Label {
                                         text: modelData.username
                                         font.bold: true
                                         font.pixelSize: Theme.fontSizeNormal
                                         color: modelData.status === "online" ? Theme.textPrimary : Theme.textSecondary
                                     }
-                                    Label { 
+                                    Label {
                                         text: modelData.status === "online" ? "Active now" : "Offline"
                                         font.pixelSize: Theme.fontSizeMedium
                                         color: Theme.textSecondary
@@ -327,7 +328,7 @@ ApplicationWindow {
                                     height: Theme.iconSizeLarge
                                     radius: Theme.radiusMedium
                                     color: Theme.unreadBadge
-                                    Label { 
+                                    Label {
                                         anchors.centerIn: parent
                                         text: modelData.unread_count
                                         color: Theme.textWhite
@@ -354,7 +355,7 @@ ApplicationWindow {
                         height: Theme.headerHeight
                         color: Theme.bgWhite
                         border.color: Theme.borderLight
-                        
+
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: Theme.spacingXXLarge
@@ -364,7 +365,7 @@ ApplicationWindow {
                                 spacing: 2
                                 Label {
                                     text: {
-                                        for (var i = 0; i < backend.onlineUsers.length; i++) 
+                                        for (var i = 0; i < backend.onlineUsers.length; i++)
                                             if (backend.onlineUsers[i].is_current) return backend.onlineUsers[i].username;
                                         return "Select a contact";
                                     }
@@ -374,13 +375,13 @@ ApplicationWindow {
                                 }
                                 RowLayout {
                                     visible: backend.currentChatUserStatus === "online"
-                                    Rectangle { 
+                                    Rectangle {
                                         width: 8
                                         height: 8
                                         radius: 4
                                         color: Theme.online
                                     }
-                                    Label { 
+                                    Label {
                                         text: "Online"
                                         font.pixelSize: Theme.fontSizeMedium
                                         color: Theme.online
@@ -392,7 +393,7 @@ ApplicationWindow {
                             RowLayout {
                                 spacing: Theme.spacingXLarge
                                 z: 3
-                                Text { 
+                                Text {
                                     text: Theme.iconPhone
                                     font.family: fontAwesome.name
                                     font.pixelSize: Theme.iconSizeMedium
@@ -407,7 +408,7 @@ ApplicationWindow {
                                         cursorShape: Qt.PointingHandCursor
                                     }
                                 }
-                                Text { 
+                                Text {
                                     text: Theme.iconVideo
                                     font.family: fontAwesome.name
                                     font.pixelSize: Theme.iconSizeMedium
@@ -422,7 +423,7 @@ ApplicationWindow {
                                         cursorShape: Qt.PointingHandCursor
                                     }
                                 }
-                                Text { 
+                                Text {
                                     text: Theme.iconMore
                                     font.family: fontAwesome.name
                                     font.pixelSize: Theme.iconSizeMedium
@@ -451,17 +452,17 @@ ApplicationWindow {
                         bottomMargin: Theme.spacingXLarge
                         leftMargin: Theme.spacingXLarge
                         rightMargin: Theme.spacingXLarge
-                        
-                        // 调试：监听 count 变化
-                        onCountChanged: {
-                            console.log("[QML ListView] count 变化: ", count)
+
+                        // 强制处理：当消息增加时，确保视图刷新并滚动
+                        property int messageCount: model ? model.count : 0
+                        onMessageCountChanged: {
+                            Qt.callLater(function() {
+                                // 强制请求布局重新计算
+                                chatList.forceLayout()
+                                chatList.positionViewAtEnd(chatList.count-1)
+                            })
                         }
-                        
-                        Component.onCompleted: {
-                            console.log("[QML ListView] 初始化完成，model:", model)
-                            console.log("[QML ListView] 初始 count:", count)
-                        }
-                        
+
                         delegate: ColumnLayout {
                             width: chatList.width - 40
                             spacing: Theme.spacingSmall
@@ -475,7 +476,7 @@ ApplicationWindow {
                                     height: Theme.avatarSmall
                                     radius: Theme.radiusMedium
                                     color: Theme.bgAvatar
-                                    Text { 
+                                    Text {
                                         anchors.centerIn: parent
                                         text: from_username.charAt(0)
                                         font.pixelSize: 12
@@ -488,7 +489,7 @@ ApplicationWindow {
                                     radius: Theme.radiusBubble
                                     color: is_mine ? Theme.primary : Theme.receivedBubble
                                     border.color: is_mine ? Theme.primary : Theme.borderLight
-                                    Text { 
+                                    Text {
                                         id: msgText
                                         text: content
                                         anchors.centerIn: parent
@@ -539,7 +540,7 @@ ApplicationWindow {
                                     scale: hovered ? 1.05 : 1.0
                                     hoverEnabled: true
                                     Behavior on scale { NumberAnimation { duration: 100 } }
-                                    contentItem: Text { 
+                                    contentItem: Text {
                                         text: Theme.iconSend
                                         color: Theme.textWhite
                                         font.family: fontAwesome.name
@@ -547,12 +548,12 @@ ApplicationWindow {
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter
                                     }
-                                    background: Rectangle { 
+                                    background: Rectangle {
                                         radius: Theme.radiusMedium
                                         color: parent.enabled ? (parent.hovered ? "#2563eb" : Theme.primary) : Theme.offline
                                         Behavior on color { ColorAnimation { duration: 150 } }
                                     }
-                                    onClicked: { 
+                                    onClicked: {
                                         backend.sendMessage(messageInput.text)
                                         messageInput.clear()
                                     }

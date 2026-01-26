@@ -71,19 +71,13 @@ class MessageListModel(QAbstractListModel):
     def add_message(self, message_dict):
         """增量添加消息"""
         row = len(self._messages)
-        print(f"[DEBUG] add_message 被调用！当前消息数: {row}")
-        print(f"[DEBUG] 消息内容: {message_dict}")
-        print(f"[DEBUG] Model parent: {self.parent()}")
         
         # 使用 beginInsertRows/endInsertRows
         from PyQt5.QtCore import QModelIndex
-        print(f"[DEBUG] 准备调用 beginInsertRows({row}, {row})")
         self.beginInsertRows(QModelIndex(), row, row)
-        print(f"[DEBUG] beginInsertRows 调用完成")
         self._messages.append(message_dict)
-        print(f"[DEBUG] 消息已添加到内部列表")
         self.endInsertRows()
-        print(f"[DEBUG] endInsertRows 调用完成")
         
-        print(f"[DEBUG] 消息添加完成，新的消息数: {len(self._messages)}")
-        print(f"[DEBUG] rowCount() 返回: {self.rowCount()}")
+        # 显式发射 dataChanged 信号，确保 UI 刷新
+        idx = self.index(row)
+        self.dataChanged.emit(idx, idx)
