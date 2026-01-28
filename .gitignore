@@ -21,7 +21,6 @@ wheels/
 *.egg
 
 # PyQt
-*.ui~
 
 # IDEs
 .vscode/
