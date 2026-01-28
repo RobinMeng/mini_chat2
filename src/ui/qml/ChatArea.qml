@@ -39,11 +39,9 @@ Rectangle {
                 anchors.leftMargin: Theme.spacingXXLarge
                 anchors.rightMargin: Theme.spacingXXLarge
                 z: 2
-
                 // 当前聊天用户信息
                 ColumnLayout {
                     spacing: 2
-
                     Label {
                         text: {
                             if (isGroupChat) {
