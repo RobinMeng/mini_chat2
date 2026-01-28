@@ -125,6 +125,37 @@ class DatabaseManager:
                 )
             ''')
             
+            # 群组表
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS groups (
+                    group_id TEXT PRIMARY KEY,
+                    group_name TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    multicast_ip TEXT NOT NULL,
+                    multicast_port INTEGER DEFAULT 10001,
+                    member_ids TEXT,
+                    created_at INTEGER,
+                    updated_at INTEGER,
+                    avatar TEXT,
+                    description TEXT,
+                    FOREIGN KEY (owner_id) REFERENCES users(user_id)
+                )
+            ''')
+            
+            # 群组成员表
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS group_members (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    group_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    role TEXT DEFAULT 'member',
+                    joined_at INTEGER,
+                    FOREIGN KEY (group_id) REFERENCES groups(group_id),
+                    FOREIGN KEY (user_id) REFERENCES users(user_id),
+                    UNIQUE(group_id, user_id)
+                )
+            ''')
+            
             # 设置表
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS settings (
@@ -139,6 +170,9 @@ class DatabaseManager:
             self.cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_from_user ON messages(from_user_id)')
             self.cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_to_user ON messages(to_user_id)')
             self.cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)')
+            self.cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_group ON messages(group_id)')
+            self.cursor.execute('CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id)')
+            self.cursor.execute('CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id)')
             
             self.conn.commit()
             logger.info("数据库表初始化完成")
@@ -272,3 +306,73 @@ class DatabaseManager:
         '''
         params = (from_user_id, to_user_id)
         return self.execute(sql, params)
+
+    def save_group(self, group):
+        """保存群组到数据库"""
+        import json
+        sql = '''
+            INSERT OR REPLACE INTO groups (
+                group_id, group_name, owner_id, multicast_ip, multicast_port,
+                member_ids, created_at, updated_at, avatar, description
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        '''
+        params = (
+            group.group_id, group.group_name, group.owner_id,
+            group.multicast_ip, group.multicast_port,
+            json.dumps(group.member_ids), group.created_at, group.updated_at,
+            group.avatar, group.description
+        )
+        return self.execute(sql, params)
+
+    def get_group(self, group_id):
+        """获取群组信息"""
+        from src.core.models import Group
+        sql = 'SELECT * FROM groups WHERE group_id = ?'
+        result = self.query_one(sql, (group_id,))
+        return Group.from_dict(result) if result else None
+
+    def get_all_groups(self):
+        """获取当前用户加入的所有群组"""
+        from src.core.models import Group
+        sql = 'SELECT * FROM groups ORDER BY updated_at DESC'
+        rows = self.query(sql)
+        return [Group.from_dict(row) for row in rows]
+
+    def add_group_member(self, group_id, user_id, role='member'):
+        """添加群组成员"""
+        sql = '''
+            INSERT OR IGNORE INTO group_members (group_id, user_id, role, joined_at)
+            VALUES (?, ?, ?, ?)
+        '''
+        params = (group_id, user_id, role, int(time.time()))
+        return self.execute(sql, params)
+
+    def remove_group_member(self, group_id, user_id):
+        """移除群组成员"""
+        sql = 'DELETE FROM group_members WHERE group_id = ? AND user_id = ?'
+        return self.execute(sql, (group_id, user_id))
+
+    def get_group_members(self, group_id):
+        """获取群组成员列表"""
+        sql = '''
+            SELECT u.* FROM users u
+            INNER JOIN group_members gm ON u.user_id = gm.user_id
+            WHERE gm.group_id = ?
+        '''
+        rows = self.query(sql, (group_id,))
+        from src.core.models import User
+        return [User.from_dict(row) for row in rows]
+
+    def get_group_messages(self, group_id, limit=50):
+        """获取群组消息历史"""
+        from src.core.models import Message
+        sql = '''
+            SELECT * FROM messages 
+            WHERE group_id = ? AND is_group = 1
+            ORDER BY timestamp DESC
+            LIMIT ?
+        '''
+        rows = self.query(sql, (group_id, limit))
+        messages = [Message.from_dict(row) for row in rows]
+        messages.reverse()
+        return messages

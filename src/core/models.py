@@ -92,6 +92,53 @@ class Message:
 
 
 @dataclass
+class Group:
+    """群组数据模型"""
+    group_id: str
+    group_name: str = ""
+    owner_id: str = ""
+    multicast_ip: str = ""  # 组播地址，如 239.0.0.100
+    multicast_port: int = 10001  # 组播端口
+    member_ids: list = field(default_factory=list)  # 成员 ID 列表
+    created_at: int = field(default_factory=lambda: int(time.time()))
+    updated_at: int = field(default_factory=lambda: int(time.time()))
+    avatar: str = ""  # 群头像
+    description: str = ""  # 群描述
+    
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            'group_id': self.group_id,
+            'group_name': self.group_name,
+            'owner_id': self.owner_id,
+            'multicast_ip': self.multicast_ip,
+            'multicast_port': self.multicast_port,
+            'member_ids': self.member_ids,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+            'avatar': self.avatar,
+            'description': self.description
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Group':
+        """从字典创建"""
+        import dataclasses
+        import json
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        
+        # 处理 member_ids（可能是 JSON 字符串）
+        if 'member_ids' in filtered_data and isinstance(filtered_data['member_ids'], str):
+            try:
+                filtered_data['member_ids'] = json.loads(filtered_data['member_ids'])
+            except:
+                filtered_data['member_ids'] = []
+        
+        return cls(**filtered_data)
+
+
+@dataclass
 class FileTransfer:
     """文件传输数据模型"""
     file_id: str

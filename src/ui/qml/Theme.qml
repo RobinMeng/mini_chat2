@@ -27,6 +27,7 @@ QtObject {
     readonly property color textSecondary: "#94a3b8"
     readonly property color textPlaceholder: "#94a3b8"
     readonly property color textWhite: "white"
+    readonly property color textBlack: "black"
 
     // === 背景颜色 ===
     readonly property color bgWhite: "white"
