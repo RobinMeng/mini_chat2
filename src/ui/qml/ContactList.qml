@@ -1,30 +1,31 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtGraphicalEffects 1.15
+import QtQuick 2.15              // 基础组件
+import QtQuick.Controls 2.15     // 按钮、列表等标准控件
+import QtQuick.Layouts 1.15      // 自动布局
+import QtGraphicalEffects 1.15   // 阴影、模糊等图形特效
 
-// 联系人列表组件（包含私聊和群聊）
+// 联系人列表组件：显示所有的对话（私聊和群聊），并提供搜索和创建群组功能
 Rectangle {
-    Layout.fillHeight: true
-    Layout.preferredWidth: Theme.contactListWidth
-    color: Theme.sidebarBg
-    border.color: Theme.borderLight
+    Layout.fillHeight: true             // 垂直方向填满父容器
+    Layout.preferredWidth: Theme.contactListWidth // 使用主题定义的列表宽度
+    color: Theme.sidebarBg              // 背景颜色
+    border.color: Theme.borderLight     // 边框颜色
 
-    property var onlineUsers: []  // 私聊用户列表
-    property var groupList: []     // 群组列表
-    property var onUserSelected: function(userId) {}
-    property var onGroupSelected: function(groupId) {}
-    property var onCreateGroup: function() {}  // 创建群组回调
+    // 定义外部可绑定的属性
+    property var onlineUsers: []        // 私聊用户数据列表
+    property var groupList: []           // 群组数据列表
+    property var onUserSelected: function(userId) {}   // 选中用户时的回调
+    property var onGroupSelected: function(groupId) {} // 选中群组时的回调
+    property var onCreateGroup: function() {}           // 点击创建群组按钮的回调
 
     ColumnLayout {
-        anchors.fill: parent
-        spacing: 0
+        anchors.fill: parent            // 填充整个矩形
+        spacing: 0                      // 组件间距为 0
 
-        // 标题栏
+        // 标题栏：显示 "Messages" 字样
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 60
-            color: "transparent"
+            color: "transparent"        // 透明背景
 
             Label {
                 anchors.left: parent.left
@@ -37,13 +38,13 @@ Rectangle {
             }
         }
 
-        // 搜索框 + 创建群组按钮
+        // 搜索栏区域：包含搜索框和 "+" 创建按钮
         RowLayout {
             Layout.fillWidth: true
             Layout.margins: Theme.spacingLarge
             spacing: Theme.spacingMedium
 
-            // 搜索框
+            // 模拟搜索框
             Rectangle {
                 Layout.fillWidth: true
                 height: Theme.searchBoxHeight
@@ -60,7 +61,7 @@ Rectangle {
                 }
             }
 
-            // 创建群组按钮
+            // 创建群组按钮：圆形 "+" 按钮
             Button {
                 Layout.preferredWidth: Theme.searchBoxHeight
                 Layout.preferredHeight: Theme.searchBoxHeight
@@ -68,6 +69,7 @@ Rectangle {
 
                 contentItem: Text {
                     text: "+"
+                    // 悬停时文字变白，否则为主色调
                     color: parent.hovered ? Theme.textWhite : Theme.primary
                     font.pixelSize: 24
                     horizontalAlignment: Text.AlignHCenter
@@ -77,12 +79,13 @@ Rectangle {
                 }
 
                 background: Rectangle {
-                    radius: Theme.searchBoxHeight / 2  // 完全圆形
+                    radius: Theme.searchBoxHeight / 2  // 设置为高度一半，确保是正圆
+                    // 悬停时背景变为主色调
                     color: parent.hovered ? Theme.primary : Theme.bgWhite
                     border.color: Theme.borderGray
                     border.width: 1
                     
-                    // 阴影效果
+                    // 为按钮添加轻微的阴影效果
                     layer.enabled: true
                     layer.effect: DropShadow {
                         horizontalOffset: 0
@@ -96,23 +99,23 @@ Rectangle {
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
-                onClicked: onCreateGroup()
+                onClicked: onCreateGroup() // 触发创建群组信号
             }
         }
 
-        // 统一聊天列表（群组 + 私聊）
+        // 核心组件：统一聊天列表（群组和私聊混合排列）
         ListView {
             id: chatListView
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
+            clip: true                  // 裁剪超出边界的内容
             spacing: Theme.spacingSmall
 
-            // 合并群组和私聊数据
+            // 动态模型：将群组列表和在线用户列表合并为一个数组
             model: {
                 var combinedList = []
                 
-                // 添加群组（标记为 type: 'group'）
+                // 1. 将群组数据处理并加入列表
                 for (var i = 0; i < groupList.length; i++) {
                     combinedList.push({
                         type: 'group',
@@ -123,7 +126,7 @@ Rectangle {
                     })
                 }
                 
-                // 添加私聊用户（标记为 type: 'user'）
+                // 2. 将私聊用户数据处理并加入列表
                 for (var j = 0; j < onlineUsers.length; j++) {
                     combinedList.push({
                         type: 'user',
@@ -138,20 +141,25 @@ Rectangle {
                 return combinedList
             }
 
+            // 定义每一项的渲染方式
             delegate: ItemDelegate {
                 width: chatListView.width
                 height: Theme.userItemHeight
                 hoverEnabled: true
 
+                // 每一项的背景样式
                 background: Rectangle {
+                    // 如果是当前选中的会话，背景变白；悬停时变浅灰
                     color: modelData.is_current ? Theme.bgWhite : (parent.hovered ? "#f5f5f5" : Theme.bgTransparent)
                     anchors.fill: parent
-                    anchors.margins: Theme.spacingSmall
+                    anchors.margins: Theme.spacingSmall // 留出一点边距
                     radius: Theme.radiusXLarge
+                    // 选中项显示特定边框色
                     border.color: modelData.is_current ? Theme.borderActive : Theme.bgTransparent
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
+                // 点击逻辑：判断是群聊还是私聊，调用对应回调
                 onClicked: {
                     if (modelData.type === 'group') {
                         onGroupSelected(modelData.id)
@@ -160,34 +168,37 @@ Rectangle {
                     }
                 }
 
+                // 每一项的具体内容布局
                 contentItem: RowLayout {
                     spacing: 12
 
-                    // 头像（群组/用户）
+                    // 左侧头像区域
                     Rectangle {
                         width: Theme.avatarLarge
                         height: Theme.avatarLarge
                         radius: Theme.radiusLarge
+                        // 群组用主色调背景，普通用户用浅色背景
                         color: modelData.type === 'group' ? Theme.primary : Theme.bgAvatar
                         opacity: modelData.type === 'group' ? 0.8 : 1.0
 
                         Text {
                             anchors.centerIn: parent
-                            text: modelData.name.charAt(0)
+                            text: modelData.name.charAt(0) // 显示首字母
                             font.bold: true
                             color: modelData.type === 'group' ? Theme.textWhite : Theme.textPrimary
                             font.pixelSize: modelData.type === 'group' ? Theme.fontSizeLarge : Theme.fontSizeNormal
                         }
 
-                        // 状态指示器（群组显示群组图标，私聊显示在线状态）
+                        // 头像右下角的状态小指示器
                         Rectangle {
                             width: Theme.iconSizeSmall
                             height: Theme.iconSizeSmall
                             radius: Theme.radiusSmall
                             color: {
                                 if (modelData.type === 'group') {
-                                    return "#10b981"  // 群组绿色
+                                    return "#10b981"  // 群组始终显示绿色指示
                                 }
+                                // 私聊根据 online/offline 切换颜色
                                 return modelData.status === "online" ? Theme.online : Theme.offline
                             }
                             border.color: Theme.textWhite
@@ -197,14 +208,14 @@ Rectangle {
 
                             Text {
                                 anchors.centerIn: parent
-                                text: modelData.type === 'group' ? "👥" : ""  // 群组显示 emoji
+                                text: modelData.type === 'group' ? "👥" : ""  // 群组显示群组小图标
                                 font.pixelSize: 8
                                 visible: modelData.type === 'group'
                             }
                         }
                     }
 
-                    // 名称和状态信息
+                    // 中间名称和二级信息（状态或成员数）
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
@@ -213,6 +224,7 @@ Rectangle {
                             text: modelData.name
                             font.bold: true
                             font.pixelSize: Theme.fontSizeNormal
+                            // 离线时名称变浅灰
                             color: {
                                 if (modelData.type === 'group') {
                                     return Theme.textPrimary
@@ -222,6 +234,7 @@ Rectangle {
                         }
 
                         Label {
+                            // 群聊显示成员数，私聊显示在线状态描述
                             text: {
                                 if (modelData.type === 'group') {
                                     return modelData.member_count + " members"
@@ -233,7 +246,7 @@ Rectangle {
                         }
                     }
 
-                    // 未读消息数量（仅私聊显示）
+                    // 右侧未读消息红色气泡（仅针对有未读消息的私聊显示）
                     Rectangle {
                         visible: modelData.type === 'user' && modelData.unread_count > 0
                         width: Theme.iconSizeLarge

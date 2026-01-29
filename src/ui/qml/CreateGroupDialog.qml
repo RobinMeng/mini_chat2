@@ -1,48 +1,49 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-import QtGraphicalEffects 1.15
+import QtQuick 2.15              // 基础组件
+import QtQuick.Controls 2.15     // 对话框、按钮等
+import QtQuick.Layouts 1.15      // 布局管理器
+import QtGraphicalEffects 1.15   // 模糊、阴影等特效
 
-// 创建群组对话框
+// 创建群组对话框：提供一个全屏模态窗口来配置新群组
 Dialog {
     id: dialog
-    modal: true
-    width: 760
-    height: 620
-    x: (parent.width - width) / 2
+    modal: true                  // 模态对话框，阻断下层交互
+    width: 760                   // 宽度
+    height: 620                  // 高度
+    x: (parent.width - width) / 2  // 居中定位
     y: (parent.height - height) / 2
-    padding: 0
-    closePolicy: Popup.CloseOnEscape
+    padding: 0                   // 移除内边距，方便自定义布局
+    closePolicy: Popup.CloseOnEscape // 按下 Esc 键关闭
 
-    property var onlineUsers: []
-    property var onCreateGroup: function(groupName, memberIds) {}
-    property string searchText: ""
-    property int selectedUserCount: 0  // 添加选中计数器
+    property var onlineUsers: []  // 待选用户列表（从后端传入）
+    property var onCreateGroup: function(groupName, memberIds) {} // 创建按钮点击回调
+    property string searchText: "" // 搜索框文本
+    property int selectedUserCount: 0 // 已选中的用户计数，用于实时刷新 UI
 
-    // 背景模糊遮罩
+    // 模态背景：在对话框弹出时，将底层界面变白并模糊处理
     Overlay.modal: Rectangle {
-        color: "#66ffffff"  // 半透明白色
+        color: "#66ffffff"       // 半透明白底
         
         layer.enabled: true
-        layer.effect: FastBlur {
+        layer.effect: FastBlur { // 快速模糊特效
             radius: 16
         }
     }
 
+    // 对话框主体背景
     background: Rectangle {
         color: Theme.bgWhite
-        radius: 40
+        radius: 40               // 大圆角设计，符合现代审美
         border.color: Theme.bgWhite
         border.width: 1
         
-        // 阴影效果
+        // 外部大阴影效果
         layer.enabled: true
         layer.effect: DropShadow {
             horizontalOffset: 0
             verticalOffset: 40
             radius: 60
             samples: 121
-            color: "#20000000"
+            color: "#20000000"   // 柔和的深色阴影
             spread: 0
         }
     }
@@ -51,12 +52,13 @@ Dialog {
         anchors.fill: parent
         spacing: 0
 
-        // 关闭按钮（左上角红点）
+        // 顶部控制区域：放置关闭按钮
         Rectangle {
             width: parent.width
-            height: 0
-            z: 100
+            height: 0            // 高度为0，按钮通过绝对坐标定位
+            z: 100               // 确保按钮在最上层
 
+            // macOS 风格的红色关闭按钮
             Button {
                 x: 24
                 y: 24
@@ -65,22 +67,23 @@ Dialog {
                 hoverEnabled: true
 
                 contentItem: Text {
-                    text: "✕"
+                    text: "✕"        // 关闭图标
                     font.pixelSize: 12
                     color: Theme.textBlack
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.bold: true
-                    opacity: parent.hovered ? 1.0 : 0.0
+                    opacity: parent.hovered ? 1.0 : 0.0 // 仅在悬停时显示 "X"
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
 
                 background: Rectangle {
-                    radius: parent.hovered ? 10 : 6
-                    color: "#ff5f57"
+                    radius: parent.hovered ? 10 : 6    // 悬停时稍微变大
+                    color: "#ff5f57"                   // 经典的 macOS 关闭按钮红
                     Behavior on radius { NumberAnimation { duration: 200 } }
                 }
 
+                // 按钮大小变化的动画
                 Behavior on width { NumberAnimation { duration: 200 } }
                 Behavior on height { NumberAnimation { duration: 200 } }
 
@@ -94,25 +97,25 @@ Dialog {
                     }
                 }
 
-                onClicked: dialog.reject()
+                onClicked: dialog.reject() // 点击关闭（拒绝操作）
             }
         }
 
-        // 顶部区域：头像 + 群组名
+        // 顶部信息输入区：头像 + 群名
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 140  // 增加高度
+            Layout.preferredHeight: 140
             color: "transparent"
 
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 40
                 anchors.rightMargin: 40
-                anchors.topMargin: 56  // 增加顶部边距，为关闭按钮留空间
+                anchors.topMargin: 56
                 anchors.bottomMargin: 32
                 spacing: 32
 
-                // 群组头像上传
+                // 模拟头像上传区域
                 Rectangle {
                     Layout.preferredWidth: 80
                     Layout.preferredHeight: 80
@@ -127,7 +130,7 @@ Dialog {
 
                         Text {
                             Layout.alignment: Qt.AlignHCenter
-                            text: "📷"  // Camera emoji
+                            text: "📷"
                             font.pixelSize: 24
                         }
 
@@ -141,7 +144,7 @@ Dialog {
                         }
                     }
 
-                    // 添加按钮
+                    // 右下角的蓝色 "+" 角标
                     Rectangle {
                         width: 28
                         height: 28
@@ -181,7 +184,7 @@ Dialog {
                     }
                 }
 
-                // 群组名输入
+                // 群组名称输入区域
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
@@ -198,7 +201,7 @@ Dialog {
                         id: groupNameInput
                         Layout.fillWidth: true
                         placeholderText: "Enter group name..."
-                        font.pixelSize: 30
+                        font.pixelSize: 30                  // 特大号字体
                         font.weight: Font.DemiBold
                         color: Theme.textPrimary
 
@@ -213,7 +216,7 @@ Dialog {
         // 搜索框区域
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 88  // 增加高度以增加上下间距
+            Layout.preferredHeight: 88
             color: "transparent"
 
             Rectangle {
@@ -221,9 +224,9 @@ Dialog {
                 anchors.leftMargin: 40
                 anchors.rightMargin: 40
                 anchors.topMargin: 16
-                anchors.bottomMargin: 32  // 增加底部间距
+                anchors.bottomMargin: 32
                 radius: 24
-                color: "#f0f0f0"  // 淡灰色背景
+                color: "#f0f0f0"
 
                 RowLayout {
                     anchors.fill: parent
@@ -232,7 +235,7 @@ Dialog {
                     spacing: 12
 
                     Text {
-                        text: "🔍"  // Search emoji
+                        text: "🔍"
                         font.pixelSize: 20
                         color: searchInput.activeFocus ? Theme.primary : Theme.textSecondary
                         Behavior on color { ColorAnimation { duration: 150 } }
@@ -254,7 +257,7 @@ Dialog {
             }
         }
 
-        // 成员网格区域
+        // 成员选择区域：网格布局展示所有在线用户
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -265,30 +268,32 @@ Dialog {
                 anchors.fill: parent
                 anchors.leftMargin: 40
                 anchors.rightMargin: 40
-                anchors.topMargin: 0  // 移除顶部边距，间距由搜索框的 bottomMargin 控制
+                anchors.topMargin: 0
                 anchors.bottomMargin: 40
                 clip: true
-                contentWidth: availableWidth  // 明确设置内容宽度
+                contentWidth: availableWidth
 
-                // 使用 Flow 布局替代 GridLayout
+                // Flow 布局：根据窗口宽度自动流式排布子组件
                 Flow {
-                    width: scrollView.availableWidth  // 使用 ScrollView 的可用宽度
+                    width: scrollView.availableWidth
                     spacing: 20
 
                     Repeater {
-                        model: onlineUsers
+                        model: onlineUsers // 遍历在线用户
                         Rectangle {
                             id: card
-                            // ✅ 使用 !! 确保初始化为布尔值，避免 undefined 错误
+                            // 每一个卡片项的逻辑
                             property bool isSelected: !!modelData.selected
 
-                            width: (scrollView.availableWidth - 80) / 5
+                            width: (scrollView.availableWidth - 80) / 5 // 一行显示 5 个
                             height: 140
                             radius: 24
-                            color: Theme.bgWhite  // ✅ 选中时不再变化颜色，始终保持白色
+                            color: Theme.bgWhite
+                            // 选中时边框加粗并变色
                             border.width: isSelected ? 2 : 1
                             border.color: isSelected ? "#64748b" : "#e5e7eb"
 
+                            // 卡片悬浮阴影效果
                             layer.enabled: true
                             layer.effect: DropShadow {
                                 horizontalOffset: 0
@@ -307,7 +312,7 @@ Dialog {
                                 anchors.margins: 16
                                 spacing: 0
 
-                                // 选中指示器（小圆点）
+                                // 右上角的小圆点选中状态指示器
                                 Rectangle {
                                     Layout.alignment: Qt.AlignRight
                                     Layout.topMargin: 0
@@ -333,7 +338,7 @@ Dialog {
 
                                 Item { Layout.fillHeight: true; Layout.minimumHeight: 4 }
 
-                                // 用户头像
+                                // 成员头像
                                 Rectangle {
                                     Layout.alignment: Qt.AlignHCenter
                                     width: 52
@@ -361,7 +366,7 @@ Dialog {
 
                                 Item { Layout.preferredHeight: 10 }
 
-                                // 用户信息
+                                // 成员名称和状态文字
                                 ColumnLayout {
                                     Layout.alignment: Qt.AlignHCenter
                                     spacing: 2
@@ -393,48 +398,44 @@ Dialog {
                                 Item { Layout.fillHeight: true; Layout.minimumHeight: 4 }
                             }
 
-                            property real scale: 1.0
+                            property real scale: 1.0 // 控制缩放的内部属性
 
                             MouseArea {
                                 id: mouseArea
                                 anchors.fill: parent
-                                z: 10  // ✅ 提升层级，确保在布局元素之上
+                                z: 10               // 确保点击层在最上
                                 cursorShape: Qt.PointingHandCursor
                                 hoverEnabled: true
 
                                 onEntered: {
-                                    parent.scale = 1.05
+                                    parent.scale = 1.05 // 鼠标悬停时放大
                                     if (!isSelected) {
                                         parent.border.color = "#cbd5e1"
                                     }
                                 }
                                 onExited: {
-                                    parent.scale = 1.0
+                                    parent.scale = 1.0 // 鼠标离开时恢复
                                     if (!isSelected) {
                                         parent.border.color = "#e5e7eb"
                                     }
                                 }
 
                                 onClicked: {
-                                    // 1. 直接切换本地布尔属性，确保界面立即响应
+                                    // 核心逻辑：切换选中状态并更新计数
                                     card.isSelected = !card.isSelected
-                                    
-                                    // 2. 将状态同步回底层数据对象
                                     modelData.selected = card.isSelected
-                                    
-                                    // 3. 更新全局计数器
-                                    selectedUserCount = selectedCount()
-                                    
+                                    selectedUserCount = selectedCount() // 刷新底部统计
                                     console.log("Card toggled for: " + modelData.username + ", now: " + card.isSelected)
                                 }
                             }
 
-                            // 添加点击时的微弱下沉效果
+                            // 变换效果：模拟点击时的微弱“下沉”深度感
                             transform: Translate {
                                 y: mouseArea.pressed ? 2 : 0
                                 Behavior on y { NumberAnimation { duration: 50 } }
                             }
 
+                            // 缩放平滑过渡
                             Behavior on scale {
                                 NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
                             }
@@ -457,12 +458,12 @@ Dialog {
                 anchors.rightMargin: 40
                 spacing: 20
 
-                // 已选成员头像堆叠
+                // 已选成员的小头像堆叠显示
                 RowLayout {
                     spacing: 0
 
                     Repeater {
-                        model: Math.min(selectedUserCount, 2)  // 使用计数器
+                        model: Math.min(selectedUserCount, 2) // 最多并列显示两个头像
 
                         Rectangle {
                             width: 44
@@ -471,7 +472,7 @@ Dialog {
                             color: Theme.bgAvatar
                             border.width: 4
                             border.color: "#fafafa"
-                            z: 10 - index
+                            z: 10 - index                    // 堆叠层级：第一个在最上面
 
                             Text {
                                 anchors.centerIn: parent
@@ -492,9 +493,9 @@ Dialog {
                         }
                     }
 
-                    // +N 指示器
+                    // 如果选了超过两个，显示 +N 的圆形指示
                     Rectangle {
-                        visible: selectedUserCount > 2  // 使用计数器
+                        visible: selectedUserCount > 2
                         width: 44
                         height: 44
                         radius: 22
@@ -505,7 +506,7 @@ Dialog {
 
                         Label {
                             anchors.centerIn: parent
-                            text: "+" + (selectedUserCount - 2)  // 使用计数器
+                            text: "+" + (selectedUserCount - 2)
                             font.pixelSize: 11
                             font.bold: true
                             color: Theme.textSecondary
@@ -522,12 +523,12 @@ Dialog {
                     }
                 }
 
-                // 文字信息
+                // 底部文字提示：显示当前选中的成员数
                 ColumnLayout {
                     spacing: 2
 
                     Label {
-                        text: selectedUserCount + " Members Selected"  // 使用计数器
+                        text: selectedUserCount + " Members Selected"
                         font.pixelSize: 14
                         font.bold: true
                         color: Theme.textPrimary
@@ -542,13 +543,13 @@ Dialog {
                     }
                 }
 
-                Item { Layout.fillWidth: true }
+                Item { Layout.fillWidth: true } // 弹簧：推开按钮
 
-                // 按钮组
+                // 底部按钮组：取消与创建
                 RowLayout {
                     spacing: 16
 
-                    // Cancel 按钮
+                    // 取消按钮
                     Button {
                         Layout.preferredWidth: 100
                         Layout.preferredHeight: 48
@@ -573,11 +574,12 @@ Dialog {
                         onClicked: dialog.reject()
                     }
 
-                    // Create 按钮
+                    // 创建按钮：仅在群名非空且选了成员时启用
                     Button {
+                        id: createBtn
                         Layout.preferredWidth: 140
                         Layout.preferredHeight: 48
-                        enabled: groupNameInput.text.trim().length > 0 && selectedUserCount > 0  // 使用计数器
+                        enabled: groupNameInput.text.trim().length > 0 && selectedUserCount > 0
                         hoverEnabled: true
 
                         contentItem: Text {
@@ -595,6 +597,7 @@ Dialog {
 
                             Behavior on color { ColorAnimation { duration: 150 } }
 
+                            // 按钮发光阴影特效
                             layer.enabled: parent.enabled
                             layer.effect: DropShadow {
                                 horizontalOffset: 0
@@ -607,6 +610,7 @@ Dialog {
                                 Behavior on radius { NumberAnimation { duration: 150 } }
                             }
 
+                            // 悬停时按钮微弱上升
                             transform: Translate {
                                 y: parent.hovered && parent.enabled ? -2 : 0
                                 Behavior on y { NumberAnimation { duration: 150 } }
@@ -624,7 +628,7 @@ Dialog {
                             if (groupNameInput.text.trim().length > 0 && selectedUserIds.length > 0) {
                                 onCreateGroup(groupNameInput.text.trim(), selectedUserIds)
                                 dialog.accept()
-                                reset()
+                                reset() // 提交后重置数据
                             }
                         }
                     }
@@ -633,7 +637,7 @@ Dialog {
         }
     }
 
-    // 辅助函数
+    // 内部 JS 逻辑：辅助函数用于计算状态
     function selectedCount() {
         var count = 0
         for (var i = 0; i < onlineUsers.length; i++) {
@@ -654,13 +658,14 @@ Dialog {
         return selected
     }
 
+    // 重置对话框状态，清空输入和选中项
     function reset() {
         groupNameInput.clear()
         searchInput.clear()
         for (var i = 0; i < onlineUsers.length; i++) {
             onlineUsers[i].selected = false
         }
-        selectedUserCount = 0  // 重置计数器
+        selectedUserCount = 0
     }
 
     onRejected: {

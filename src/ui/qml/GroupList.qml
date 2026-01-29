@@ -2,22 +2,22 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-// 群组列表组件
+// 群组列表组件：独立显示所有已加入或创建的群组（当前主要在 ContactList 中合并显示，此文件作为备选或独立组件）
 Rectangle {
-    Layout.fillHeight: true
-    Layout.preferredWidth: Theme.contactListWidth
-    color: Theme.sidebarBg
+    Layout.fillHeight: true                 // 垂直填满
+    Layout.preferredWidth: Theme.contactListWidth // 宽度
+    color: Theme.sidebarBg                  // 背景色
     border.color: Theme.borderLight
 
-    property var groupList: []
-    property var onGroupSelected: function(groupId) {}
-    property var onCreateGroup: function() {}
+    property var groupList: []               // 群组数据列表
+    property var onGroupSelected: function(groupId) {} // 选中回调
+    property var onCreateGroup: function() {}           // 创建回调
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // 标题和创建按钮
+        // 标题和创建按钮区域
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.headerHeight
@@ -35,9 +35,9 @@ Rectangle {
                     color: Theme.textPrimary
                 }
 
-                Item { Layout.fillWidth: true }
+                Item { Layout.fillWidth: true } // 弹簧
 
-                // 创建群组按钮
+                // 快捷创建群组按钮
                 Button {
                     Layout.preferredWidth: Theme.iconSizeLarge
                     Layout.preferredHeight: Theme.iconSizeLarge
@@ -54,6 +54,7 @@ Rectangle {
 
                     background: Rectangle {
                         radius: Theme.radiusMedium
+                        // 悬停变色效果
                         color: parent.hovered ? "#2563eb" : Theme.primary
                         Behavior on color { ColorAnimation { duration: 150 } }
                     }
@@ -63,7 +64,7 @@ Rectangle {
             }
         }
 
-        // 搜索框
+        // 搜索框区域
         Rectangle {
             Layout.fillWidth: true
             Layout.margins: Theme.spacingLarge
@@ -81,7 +82,7 @@ Rectangle {
             }
         }
 
-        // 群组列表
+        // 消息列表：展示群组项
         ListView {
             id: groupListView
             Layout.fillWidth: true
@@ -96,6 +97,7 @@ Rectangle {
                 hoverEnabled: true
 
                 background: Rectangle {
+                    // 选中状态与悬停状态的背景切换
                     color: modelData.is_current ? Theme.bgWhite : (parent.hovered ? "#f5f5f5" : Theme.bgTransparent)
                     anchors.fill: parent
                     anchors.margins: Theme.spacingSmall
@@ -109,7 +111,7 @@ Rectangle {
                 contentItem: RowLayout {
                     spacing: 12
 
-                    // 群组头像
+                    // 群组头像（蓝色背景）
                     Rectangle {
                         width: Theme.avatarLarge
                         height: Theme.avatarLarge
@@ -125,7 +127,7 @@ Rectangle {
                             font.pixelSize: Theme.fontSizeLarge
                         }
 
-                        // 群组标识
+                        // 右下角的小群组标识（绿色 👥 图标）
                         Rectangle {
                             width: Theme.iconSizeSmall
                             height: Theme.iconSizeSmall
@@ -144,7 +146,7 @@ Rectangle {
                         }
                     }
 
-                    // 群组信息
+                    // 名称和成员数信息
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
@@ -163,7 +165,7 @@ Rectangle {
                         }
                     }
 
-                    // 未读消息数量（预留）
+                    // 未读气泡（预留展示位）
                     Rectangle {
                         visible: false
                         width: Theme.iconSizeLarge
@@ -183,7 +185,7 @@ Rectangle {
             }
         }
 
-        // 空状态提示
+        // 空状态展示：当没有任何群组时显示提示
         Rectangle {
             visible: groupList.length === 0
             Layout.fillWidth: true

@@ -3,29 +3,30 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.15
 
-// 窗口控制按钮组件（关闭、最小化、最大化）
+// 窗口控制按钮组件：模拟 macOS 风格的三个圆形功能按钮（关闭、最小化、最大化）
 Rectangle {
-    Layout.fillWidth: true
-    Layout.preferredHeight: 30
+    Layout.fillWidth: true                  // 填满侧边栏顶部宽度
+    Layout.preferredHeight: 30              // 固定高度
     color: "transparent"
-    z: 2
+    z: 2                                    // 确保在最上层，避免被拖拽 MouseArea 阻挡
 
     RowLayout {
-        anchors.centerIn: parent
-        spacing: 8
+        anchors.centerIn: parent            // 居中排列
+        spacing: 8                          // 按钮之间的间距
 
-        // 关闭按钮
+        // 1. 关闭按钮 (红色)
         Rectangle {
             width: Theme.iconSizeSmall
             height: Theme.iconSizeSmall
-            radius: Theme.radiusSmall
+            radius: Theme.radiusSmall       // 正圆
             color: Theme.windowClose
+            // 悬停缩放动画
             scale: closeMouseArea.containsMouse ? 1.1 : 1.0
             Behavior on scale { NumberAnimation { duration: 100 } }
             
             Text {
                 anchors.centerIn: parent
-                text: "×"
+                text: "×"                   // 悬停时显示的 X 符号
                 color: "#5a0000"
                 font.pixelSize: 10
                 font.bold: true
@@ -35,13 +36,13 @@ Rectangle {
             MouseArea {
                 id: closeMouseArea
                 anchors.fill: parent
-                hoverEnabled: true
-                onClicked: window.close()
+                hoverEnabled: true          // 开启悬停监测
+                onClicked: window.close()   // 触发窗口关闭
                 cursorShape: Qt.PointingHandCursor
             }
         }
 
-        // 最小化按钮
+        // 2. 最小化按钮 (黄色)
         Rectangle {
             width: Theme.iconSizeSmall
             height: Theme.iconSizeSmall
@@ -52,7 +53,7 @@ Rectangle {
             
             Text {
                 anchors.centerIn: parent
-                text: "−"
+                text: "−"                   // 悬停时显示的减号符号
                 color: "#855a00"
                 font.pixelSize: 10
                 font.bold: true
@@ -63,12 +64,12 @@ Rectangle {
                 id: minimizeMouseArea
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: window.showMinimized()
+                onClicked: window.showMinimized() // 最小化到任务栏
                 cursorShape: Qt.PointingHandCursor
             }
         }
 
-        // 最大化按钮
+        // 3. 全屏/最大化按钮 (绿色)
         Rectangle {
             width: Theme.iconSizeSmall
             height: Theme.iconSizeSmall
@@ -79,7 +80,7 @@ Rectangle {
             
             Text {
                 anchors.centerIn: parent
-                text: "＋"
+                text: "＋"                   // 悬停时显示的加号符号
                 color: "#006b2e"
                 font.pixelSize: 10
                 font.bold: true
@@ -91,6 +92,7 @@ Rectangle {
                 anchors.fill: parent
                 hoverEnabled: true
                 onClicked: {
+                    // 切换最大化与常规窗口状态
                     if (window.visibility === Window.Maximized) {
                         window.showNormal()
                     } else {
