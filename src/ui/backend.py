@@ -34,13 +34,15 @@ class QmlBackend(QObject):
     # 内部跨线程专用信号
     _internalMessageSignal = pyqtSignal(object)
     _internalGroupMessageSignal = pyqtSignal(object)  # 群组消息内部信号
-
+    _internalGroupInviteSignal = pyqtSignal(object)   # 群组邀请内部信号
+    
     def __init__(self):
         super().__init__()
-        
+            
         # 绑定内部信号到处理函数 (确保在主线程执行)
         self._internalMessageSignal.connect(self._ui_safe_process_received_message)
         self._internalGroupMessageSignal.connect(self._ui_safe_process_group_message)
+        self._internalGroupInviteSignal.connect(self._ui_safe_process_group_invite)
 
         # 初始化管理器 (Model 层)
         self.user_manager = UserManager()
@@ -55,13 +57,17 @@ class QmlBackend(QObject):
         self._message_model.set_current_user_id(self.user_manager.current_user.user_id)
 
         # 网络服务
-        self.broadcast_service = BroadcastService(on_user_discovered=self._on_user_discovered)
+        self.broadcast_service = BroadcastService(
+            on_user_discovered=self._on_user_discovered,
+            on_group_invite=self._on_group_invite_received
+        )
         self.message_service = MessageService(on_message_received=self._on_message_received)
         
         # 群组管理器
         self.group_manager = GroupManager(
             db_manager=self.db_manager,
-            on_group_message_received=self._on_group_message_received
+            on_group_message_received=self._on_group_message_received,
+            on_broadcast_needed=self.broadcast_service.send_custom_broadcast
         )
 
         # 当前聊天对象 ID
@@ -279,6 +285,11 @@ class QmlBackend(QObject):
     def _on_group_message_received(self, message: Message):
         """群组消息接收回调 (后台线程运行)"""
         try:
+            # 过滤掉自己发送的消息，避免重复展示
+            # 因为在 sendMessage 中，发送成功后已经手动添加到了 message_model 中
+            if message.from_user_id == self.user_manager.current_user.user_id:
+                return
+                
             # 通过信号通知主线程
             self._internalGroupMessageSignal.emit(message)
         except Exception as e:
@@ -314,6 +325,39 @@ class QmlBackend(QObject):
         )
         if self.user_manager.add_user(user):
             self.userListChanged.emit()
+
+    def _on_group_invite_received(self, invite_data: dict):
+        """处理收到的群组邀请广播 (后台线程运行)"""
+        try:
+            # 通过信号通知主线程
+            self._internalGroupInviteSignal.emit(invite_data)
+        except Exception as e:
+            logger.error(f"发送群组邀请内部信号失败: {e}")
+
+    def _ui_safe_process_group_invite(self, invite_data: dict):
+        """(主线程运行) 安全处理群组邀请"""
+        try:
+            target_ids = invite_data.get('target_user_ids', [])
+            my_id = self.user_manager.current_user.user_id
+            
+            # 如果我被邀请了，或者我是创建者（由于广播机制，自己也会收到）
+            if my_id in target_ids or my_id == invite_data.get('owner_id'):
+                group = Group(
+                    group_id=invite_data.get('group_id'),
+                    group_name=invite_data.get('group_name'),
+                    owner_id=invite_data.get('owner_id'),
+                    multicast_ip=invite_data.get('multicast_ip'),
+                    multicast_port=invite_data.get('multicast_port', 10001),
+                    member_ids=target_ids + [invite_data.get('owner_id')]
+                )
+                
+                # 加入群组并更新 UI
+                self.group_manager.join_group(group)
+                self.groupListChanged.emit()
+                logger.info(f"主线程：已加入群组: {group.group_name}")
+                
+        except Exception as e:
+            logger.error(f"UI 处理群组邀请失败: {e}")
 
     @pyqtSlot()
     def stop(self):

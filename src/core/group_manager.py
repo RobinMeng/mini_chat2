@@ -24,16 +24,18 @@ class GroupManager:
     MULTICAST_END = 255
     MULTICAST_PORT = 10001
     
-    def __init__(self, db_manager, on_group_message_received: Optional[Callable] = None):
+    def __init__(self, db_manager, on_group_message_received: Optional[Callable] = None, on_broadcast_needed: Optional[Callable] = None):
         """
         初始化群组管理器
         
         Args:
             db_manager: 数据库管理器实例
             on_group_message_received: 接收到群组消息时的回调
+            on_broadcast_needed: 需要发送广播时的回调（用于发送群组邀请）
         """
         self.db_manager = db_manager
         self.on_group_message_received = on_group_message_received
+        self.on_broadcast_needed = on_broadcast_needed
         
         # 群组 ID -> Group 对象
         self.groups: Dict[str, Group] = {}
@@ -146,6 +148,9 @@ class GroupManager:
             
             # 启动组播监听
             self._start_group_listener(group_id)
+            
+            # 发送群组邀请广播
+            self.send_group_invite(group_id, owner_id, member_ids)
             
             logger.info(f"群组创建成功: {group_name} ({group_id}), 组播地址: {multicast_ip}")
             return group
@@ -422,15 +427,18 @@ class GroupManager:
                 'timestamp': int(time.time())
             }
             
-            # 通过组播发送邀请
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
-            
-            data = json.dumps(payload).encode('utf-8')
-            sock.sendto(data, (group.multicast_ip, group.multicast_port))
-            sock.close()
-            
-            logger.info(f"群组邀请已发送: {group.group_name} -> {target_user_ids}")
+            # 使用广播服务发送邀请，这样所有人都能在发现频道收到
+            if self.on_broadcast_needed:
+                self.on_broadcast_needed(payload)
+                logger.info(f"群组邀请广播已提交: {group.group_name}")
+            else:
+                # 降级：通过组播尝试（可能由于还没加入而收不到）
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+                sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+                data = json.dumps(payload).encode('utf-8')
+                sock.sendto(data, (group.multicast_ip, group.multicast_port))
+                sock.close()
+                logger.info(f"群组邀请组播已发送 (降级模式): {group.group_name}")
             
         except Exception as e:
             logger.error(f"发送群组邀请失败: {e}")

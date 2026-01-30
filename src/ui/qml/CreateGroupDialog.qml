@@ -15,14 +15,16 @@ Dialog {
     closePolicy: Popup.CloseOnEscape // 按下 Esc 键关闭
 
     property var onlineUsers: []  // 待选用户列表（从后端传入）
-    property var onCreateGroup: function(groupName, memberIds) {} // 创建按钮点击回调
+    property var onCreateGroup: function (groupName, memberIds) {
+    } // 创建按钮点击回调
     property string searchText: "" // 搜索框文本
     property int selectedUserCount: 0 // 已选中的用户计数，用于实时刷新 UI
+    property var selectedIds: ({}) // 使用对象作为 Map 来存储选中的 ID
 
     // 模态背景：在对话框弹出时，将底层界面变白并模糊处理
     Overlay.modal: Rectangle {
         color: "#66ffffff"       // 半透明白底
-        
+
         layer.enabled: true
         layer.effect: FastBlur { // 快速模糊特效
             radius: 16
@@ -35,7 +37,7 @@ Dialog {
         radius: 40               // 大圆角设计，符合现代审美
         border.color: Theme.bgWhite
         border.width: 1
-        
+
         // 外部大阴影效果
         layer.enabled: true
         layer.effect: DropShadow {
@@ -74,18 +76,34 @@ Dialog {
                     verticalAlignment: Text.AlignVCenter
                     font.bold: true
                     opacity: parent.hovered ? 1.0 : 0.0 // 仅在悬停时显示 "X"
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: 200
+                        }
+                    }
                 }
 
                 background: Rectangle {
                     radius: parent.hovered ? 10 : 6    // 悬停时稍微变大
                     color: "#ff5f57"                   // 经典的 macOS 关闭按钮红
-                    Behavior on radius { NumberAnimation { duration: 200 } }
+                    Behavior on radius {
+                        NumberAnimation {
+                            duration: 200
+                        }
+                    }
                 }
 
                 // 按钮大小变化的动画
-                Behavior on width { NumberAnimation { duration: 200 } }
-                Behavior on height { NumberAnimation { duration: 200 } }
+                Behavior on width {
+                    NumberAnimation {
+                        duration: 200
+                    }
+                }
+                Behavior on height {
+                    NumberAnimation {
+                        duration: 200
+                    }
+                }
 
                 onHoveredChanged: {
                     if (hovered) {
@@ -238,7 +256,11 @@ Dialog {
                         text: "🔍"
                         font.pixelSize: 20
                         color: searchInput.activeFocus ? Theme.primary : Theme.textSecondary
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: 150
+                            }
+                        }
                     }
 
                     TextField {
@@ -283,7 +305,7 @@ Dialog {
                         Rectangle {
                             id: card
                             // 每一个卡片项的逻辑
-                            property bool isSelected: !!modelData.selected
+                            property bool isSelected: !!(modelData && selectedIds[modelData.user_id])
 
                             width: (scrollView.availableWidth - 80) / 5 // 一行显示 5 个
                             height: 140
@@ -336,7 +358,9 @@ Dialog {
                                     Behavior on border.color { ColorAnimation { duration: 200 } }
                                 }
 
-                                Item { Layout.fillHeight: true; Layout.minimumHeight: 4 }
+                                Item {
+                                    Layout.fillHeight: true; Layout.minimumHeight: 4
+                                }
 
                                 // 成员头像
                                 Rectangle {
@@ -364,7 +388,9 @@ Dialog {
                                     }
                                 }
 
-                                Item { Layout.preferredHeight: 10 }
+                                Item {
+                                    Layout.preferredHeight: 10
+                                }
 
                                 // 成员名称和状态文字
                                 ColumnLayout {
@@ -395,7 +421,9 @@ Dialog {
                                     }
                                 }
 
-                                Item { Layout.fillHeight: true; Layout.minimumHeight: 4 }
+                                Item {
+                                    Layout.fillHeight: true; Layout.minimumHeight: 4
+                                }
                             }
 
                             property real scale: 1.0 // 控制缩放的内部属性
@@ -421,23 +449,37 @@ Dialog {
                                 }
 
                                 onClicked: {
-                                    // 核心逻辑：切换选中状态并更新计数
-                                    card.isSelected = !card.isSelected
-                                    modelData.selected = card.isSelected
-                                    selectedUserCount = selectedCount() // 刷新底部统计
-                                    console.log("Card toggled for: " + modelData.username + ", now: " + card.isSelected)
+                                    if (modelData && modelData.user_id) {
+                                        var id = modelData.user_id
+                                        // 切换选中状态
+                                        if (selectedIds[id]) {
+                                            delete selectedIds[id]
+                                        } else {
+                                            selectedIds[id] = true
+                                        }
+                                        // 重新赋值触发属性绑定刷新
+                                        selectedIds = selectedIds
+                                        selectedUserCount = Object.keys(selectedIds).length
+                                        console.log("Card clicked: " + modelData.username + ", Selected: " + !!selectedIds[id] + ", Total: " + selectedUserCount)
+                                    }
                                 }
                             }
 
                             // 变换效果：模拟点击时的微弱“下沉”深度感
                             transform: Translate {
                                 y: mouseArea.pressed ? 2 : 0
-                                Behavior on y { NumberAnimation { duration: 50 } }
+                                Behavior on y {
+                                    NumberAnimation {
+                                        duration: 50
+                                    }
+                                }
                             }
 
                             // 缩放平滑过渡
                             Behavior on scale {
-                                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                NumberAnimation {
+                                    duration: 200; easing.type: Easing.OutCubic
+                                }
                             }
                         }
                     }
@@ -543,7 +585,9 @@ Dialog {
                     }
                 }
 
-                Item { Layout.fillWidth: true } // 弹簧：推开按钮
+                Item {
+                    Layout.fillWidth: true
+                } // 弹簧：推开按钮
 
                 // 底部按钮组：取消与创建
                 RowLayout {
@@ -562,13 +606,21 @@ Dialog {
                             color: parent.hovered ? Theme.textPrimary : Theme.textSecondary
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
                         }
 
                         background: Rectangle {
                             radius: 16
                             color: parent.hovered ? Theme.bgInputArea : "transparent"
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
                         }
 
                         onClicked: dialog.reject()
@@ -595,7 +647,11 @@ Dialog {
                             radius: 16
                             color: parent.enabled ? (parent.hovered ? "#2563eb" : Theme.primary) : Theme.offline
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
 
                             // 按钮发光阴影特效
                             layer.enabled: parent.enabled
@@ -606,25 +662,32 @@ Dialog {
                                 samples: parent.hovered ? 57 : 41
                                 color: "#353b82f6"
                                 spread: 0
-                                Behavior on verticalOffset { NumberAnimation { duration: 150 } }
-                                Behavior on radius { NumberAnimation { duration: 150 } }
+                                Behavior on verticalOffset {
+                                    NumberAnimation {
+                                        duration: 150
+                                    }
+                                }
+                                Behavior on radius {
+                                    NumberAnimation {
+                                        duration: 150
+                                    }
+                                }
                             }
 
                             // 悬停时按钮微弱上升
                             transform: Translate {
                                 y: parent.hovered && parent.enabled ? -2 : 0
-                                Behavior on y { NumberAnimation { duration: 150 } }
+                                Behavior on y {
+                                    NumberAnimation {
+                                        duration: 150
+                                    }
+                                }
                             }
                         }
 
                         onClicked: {
-                            var selectedUserIds = []
-                            for (var i = 0; i < onlineUsers.length; i++) {
-                                if (onlineUsers[i].selected) {
-                                    selectedUserIds.push(onlineUsers[i].user_id)
-                                }
-                            }
-                            
+                            var selectedUserIds = Object.keys(selectedIds)
+                                                    
                             if (groupNameInput.text.trim().length > 0 && selectedUserIds.length > 0) {
                                 onCreateGroup(groupNameInput.text.trim(), selectedUserIds)
                                 dialog.accept()
@@ -639,19 +702,13 @@ Dialog {
 
     // 内部 JS 逻辑：辅助函数用于计算状态
     function selectedCount() {
-        var count = 0
-        for (var i = 0; i < onlineUsers.length; i++) {
-            if (onlineUsers[i].selected) {
-                count++
-            }
-        }
-        return count
+        return Object.keys(selectedIds).length
     }
 
     function getSelectedUsers() {
         var selected = []
         for (var i = 0; i < onlineUsers.length; i++) {
-            if (onlineUsers[i].selected) {
+            if (selectedIds[onlineUsers[i].user_id]) {
                 selected.push(onlineUsers[i])
             }
         }
@@ -662,9 +719,7 @@ Dialog {
     function reset() {
         groupNameInput.clear()
         searchInput.clear()
-        for (var i = 0; i < onlineUsers.length; i++) {
-            onlineUsers[i].selected = false
-        }
+        selectedIds = {}
         selectedUserCount = 0
     }
 

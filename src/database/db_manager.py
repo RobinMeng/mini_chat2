@@ -4,6 +4,7 @@
 import os
 import sqlite3
 import time
+import threading
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from src.config import config
@@ -21,6 +22,7 @@ class DatabaseManager:
         self.db_path = config.DB_PATH
         self.conn: Optional[sqlite3.Connection] = None
         self.cursor: Optional[sqlite3.Cursor] = None
+        self.lock = threading.Lock()
         self.connect()
         self.init_tables()
         
@@ -192,17 +194,18 @@ class DatabaseManager:
         Returns:
             是否成功
         """
-        try:
-            if params:
-                self.cursor.execute(sql, params)
-            else:
-                self.cursor.execute(sql)
-            self.conn.commit()
-            return True
-        except Exception as e:
-            logger.error(f"执行 SQL 失败: {e}")
-            self.conn.rollback()
-            return False
+        with self.lock:
+            try:
+                if params:
+                    self.cursor.execute(sql, params)
+                else:
+                    self.cursor.execute(sql)
+                self.conn.commit()
+                return True
+            except Exception as e:
+                logger.error(f"执行 SQL 失败: {e}")
+                self.conn.rollback()
+                return False
     
     def query(self, sql: str, params: tuple = None) -> List[Dict[str, Any]]:
         """
@@ -215,18 +218,19 @@ class DatabaseManager:
         Returns:
             查询结果列表
         """
-        try:
-            if params:
-                self.cursor.execute(sql, params)
-            else:
-                self.cursor.execute(sql)
-            
-            rows = self.cursor.fetchall()
-            return [dict(row) for row in rows]
-            
-        except Exception as e:
-            logger.error(f"查询数据失败: {e}")
-            return []
+        with self.lock:
+            try:
+                if params:
+                    self.cursor.execute(sql, params)
+                else:
+                    self.cursor.execute(sql)
+                
+                rows = self.cursor.fetchall()
+                return [dict(row) for row in rows]
+                
+            except Exception as e:
+                logger.error(f"查询数据失败: {e}")
+                return []
     
     def query_one(self, sql: str, params: tuple = None) -> Optional[Dict[str, Any]]:
         """
@@ -239,23 +243,24 @@ class DatabaseManager:
         Returns:
             查询结果字典，不存在返回 None
         """
-        try:
-            if params:
-                self.cursor.execute(sql, params)
-            else:
-                self.cursor.execute(sql)
-            
-            row = self.cursor.fetchone()
-            return dict(row) if row else None
-            
-        except Exception as e:
-            logger.error(f"查询数据失败: {e}")
-            return None
+        with self.lock:
+            try:
+                if params:
+                    self.cursor.execute(sql, params)
+                else:
+                    self.cursor.execute(sql)
+                
+                row = self.cursor.fetchone()
+                return dict(row) if row else None
+                
+            except Exception as e:
+                logger.error(f"查询数据失败: {e}")
+                return None
 
     def save_message(self, message):
         """保存消息到数据库"""
         sql = '''
-            INSERT INTO messages (
+            INSERT OR IGNORE INTO messages (
                 msg_id, type, from_user_id, from_username,
                 to_user_id, to_username, content, timestamp,
                 is_group, group_id, is_read, status, created_at

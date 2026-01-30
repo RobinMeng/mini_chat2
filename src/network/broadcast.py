@@ -16,14 +16,16 @@ logger = get_logger(__name__)
 class BroadcastService:
     """UDP 广播服务类"""
     
-    def __init__(self, on_user_discovered: Optional[Callable] = None):
+    def __init__(self, on_user_discovered: Optional[Callable] = None, on_group_invite: Optional[Callable] = None):
         """
         初始化广播服务
         
         Args:
             on_user_discovered: 发现用户时的回调函数
+            on_group_invite: 收到群组邀请时的回调函数
         """
         self.on_user_discovered = on_user_discovered
+        self.on_group_invite = on_group_invite
         self.socket = None
         self.running = False
         self.broadcast_thread = None
@@ -125,6 +127,14 @@ class BroadcastService:
                 if self.running:
                     logger.error(f"接收广播失败: {e}")
     
+    def send_custom_broadcast(self, payload: dict):
+        """发送自定义广播包"""
+        try:
+            data = json.dumps(payload).encode('utf-8')
+            self.socket.sendto(data, (config.BROADCAST_ADDRESS, config.BROADCAST_PORT))
+        except Exception as e:
+            logger.error(f"发送自定义广播失败: {e}")
+
     def _handle_received_data(self, data: bytes, addr: tuple):
         """
         处理接收到的数据
@@ -139,6 +149,8 @@ class BroadcastService:
             
             if self.on_user_discovered and msg_type in ['HEARTBEAT', 'BYE']:
                 self.on_user_discovered(message, addr)
+            elif self.on_group_invite and msg_type == 'GROUP_INVITE':
+                self.on_group_invite(message)
                 
         except Exception as e:
             logger.error(f"处理广播数据失败: {e}")
