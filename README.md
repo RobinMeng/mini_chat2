@@ -81,6 +81,7 @@ python tests/test_network_simple.py message
 - ✅ **无边框窗口**: 沉浸式 UI 体验，支持原生窗口拖拽与 macOS 风格控制。
 - ✅ **数据驱动**: 使用 `QAbstractListModel` 驱动界面，解决大数据量下的卡顿与绑定失效问题。
 - ✅ **单机多实例测试**: 引入 `SO_REUSEPORT`，支持同一台机器开启多个客户端进行互通测试。
+- ✅ **后端重构**: 采用复合控制器模式，将业务逻辑解耦为独立子模块，提升系统可维护性。
 - ✅ **隐私安全**: 严格的“阅后即焚”逻辑，物理层级确保数据不留存。
 - ✅ **健壮的协议**: 采用 4 字节长度前缀 + JSON 协议，解决 TCP 粘包/半包问题。
 
@@ -97,9 +98,11 @@ python tests/test_network_simple.py message
 
 ### 已完成 ✅
 - [x] 项目结构搭建与 QML 基础架构
+- [x] 后端控制器解耦 (UserController/ChatController/GroupController)
 - [x] 基于 Python 的 `QAbstractListModel` 列表驱动
 - [x] UDP 广播服务（支持 `SO_REUSEPORT` 单机多开）
 - [x] TCP 异步消息收发与粘包处理
+- [x] 群组邀请同步与组播去重逻辑
 - [x] **阅后即焚** 数据库销毁逻辑
 - [x] **未读消息计数** 与红色气泡提醒
 - [x] **下线状态感知** 与发送功能自动锁定
@@ -107,7 +110,6 @@ python tests/test_network_simple.py message
 
 ### 开发中 🚧
 - [ ] 文件传输功能
-- [ ] 群组聊天功能
 - [ ] 系统托盘功能
 - [ ] 表情选择器
 
