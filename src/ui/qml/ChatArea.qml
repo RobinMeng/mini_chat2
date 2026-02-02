@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.15      // 导入布局库，提供 ColumnLayout, RowLa
 
 // 聊天区域组件：负责显示对话详情，包含顶部的用户信息头部、中间的消息列表和底部的输入框
 Rectangle {
+    id: chatAreaRoot
     color: Theme.bgWhite         // 设置背景颜色为主题定义的白色
 
     // 定义属性供外部绑定和交互
@@ -15,6 +16,7 @@ Rectangle {
     property bool isGroupChat: false  // 标识当前是否为群聊模式
     property string groupName: ""      // 当前聊天群组的名称
     property int groupMemberCount: 0  // 当前群组的成员总数
+    property int inputAreaHeight: Theme.inputAreaHeight // 输入区域高度，初始为主题定义高度
 
     // scrollToBottom 函数：提供给外部调用，用于将消息列表滚动到最底部
     function scrollToBottom() {
@@ -237,76 +239,135 @@ Rectangle {
 
         // 输入区域容器
         Rectangle {
+            id: inputAreaContainer
             Layout.fillWidth: true
-            height: Theme.inputAreaHeight // 固定高度
-            color: Theme.bgWhite
+            Layout.preferredHeight: inputAreaHeight
+            color: Theme.bgInputArea // 使用输入区背景色
 
-            // 圆角输入框背景
+            // 顶部分割线 - 灰黑色
             Rectangle {
+                width: parent.width
+                height: 1
+                color: Theme.separator
+                anchors.top: parent.top
+                z: 11
+            }
+
+            // 拖拽调整高度的拉手
+            Rectangle {
+                id: resizeHandle
+                width: parent.width
+                height: 8
+                anchors.top: parent.top
+                anchors.topMargin: -4
+                color: "transparent"
+                z: 12
+
+                property point clickPos: "0,0"
+                property int startHeight: 0
+
+                MouseArea {
+                    id: dragArea
+                    anchors.fill: parent
+                    cursorShape: Qt.SizeVerCursor
+                    onPressed: {
+                        resizeHandle.clickPos = mapToItem(chatAreaRoot, mouse.x, mouse.y)
+                        resizeHandle.startHeight = inputAreaHeight
+                    }
+                    onPositionChanged: {
+                        if (pressed) {
+                            var currentPos = mapToItem(chatAreaRoot, mouse.x, mouse.y)
+                            var dy = currentPos.y - resizeHandle.clickPos.y
+                            var newHeight = Math.max(Theme.inputAreaHeight, Math.min(chatAreaRoot.height / 2, resizeHandle.startHeight - dy))
+                            inputAreaHeight = newHeight
+                        }
+                    }
+                }
+
+                // 拖拽时的视觉高亮线 (加粗并变为黑色)
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width
+                    height: 3 // 加粗为 3px
+                    color: "black" // 拖拽时变为黑色
+                    visible: dragArea.pressed
+                    opacity: 0.8 // 增强可见度
+                }
+            }
+
+            // 内容布局：直接贴合父容器，通过内边距 (margins) 控制文字位置
+            RowLayout {
                 anchors.fill: parent
                 anchors.margins: Theme.spacingLarge
-                radius: Theme.radiusXLarge
-                color: Theme.bgInputArea    // 浅灰色输入背景
-                border.color: Theme.bgAvatar
+                anchors.topMargin: Theme.spacingMedium // 避开顶部分割线
+                spacing: Theme.spacingMedium
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: Theme.spacingLarge
-                    anchors.rightMargin: 8
+                // 多行文本输入区域
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
 
-                    // 文本输入框组件
-                    TextField {
+                    TextArea {
                         id: messageInput
-                        Layout.fillWidth: true
                         placeholderText: {
-                            if (isGroupChat) {
-                                return "Write a message to group..."
-                            }
+                            if (isGroupChat) return "Write a message to group..."
                             return currentChatUserStatus === "online" ? "Write a message..." : "User is offline"
                         }
-                        // 对方离线且非群聊时，禁用输入
                         enabled: isGroupChat || currentChatUserStatus === "online"
-                        background: Item {}  // 隐藏原生的边框背景，使用外层的 Rectangle
+                        background: Item {} // 隐藏默认背景
                         color: Theme.textPrimary
                         font.pixelSize: Theme.fontSizeNormal
-                        // 按回车键时触发发送按钮的点击事件
-                        onAccepted: sendBtn.clicked()
+                        wrapMode: TextArea.Wrap
+                        padding: 0
+                        selectByMouse: true
+
+                        // 键盘交互逻辑
+                        Keys.onPressed: {
+                            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                                if (event.modifiers & Qt.ShiftModifier) {
+                                    return; // Shift+Enter 换行
+                                } else {
+                                    if (sendBtn.enabled) sendBtn.clicked();
+                                    event.accepted = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 发送按钮 (固定在右下角)
+                Button {
+                    id: sendBtn
+                    Layout.preferredWidth: Theme.buttonSmall
+                    Layout.preferredHeight: Theme.buttonSmall
+                    Layout.alignment: Qt.AlignBottom
+                    enabled: (isGroupChat || currentChatUserStatus === "online") && messageInput.text.trim().length > 0
+                    
+                    scale: hovered ? 1.05 : 1.0
+                    hoverEnabled: true
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+
+                    contentItem: Text {
+                        text: Theme.iconSend
+                        color: Theme.textWhite
+                        font.family: fontAwesomeFamily
+                        font.pixelSize: Theme.iconSizeMedium
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
 
-                    // 发送按钮：带图标的圆形/圆角矩形
-                    Button {
-                        id: sendBtn
-                        Layout.preferredWidth: Theme.buttonSmall
-                        Layout.preferredHeight: Theme.buttonSmall
-                        // 仅在有内容输入且对方在线（或群聊）时可用
-                        enabled: (isGroupChat || currentChatUserStatus === "online") && messageInput.text.trim().length > 0
-                        scale: hovered ? 1.05 : 1.0
-                        hoverEnabled: true
-                        Behavior on scale { NumberAnimation { duration: 100 } }
+                    background: Rectangle {
+                        radius: Theme.radiusMedium
+                        // 始终保持为 primary 颜色，通过透明度区分状态，视觉更丝滑
+                        color: Theme.primary
+                        opacity: parent.enabled ? (parent.pressed ? 0.8 : (parent.hovered ? 0.9 : 1.0)) : 0.4
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                    }
 
-                        // 按钮内的图标
-                        contentItem: Text {
-                            text: Theme.iconSend
-                            color: Theme.textWhite
-                            font.family: fontAwesomeFamily
-                            font.pixelSize: Theme.iconSizeMedium
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        // 按钮背景样式
-                        background: Rectangle {
-                            radius: Theme.radiusMedium
-                            // 根据启用状态和悬停状态切换颜色
-                            color: parent.enabled ? (parent.hovered ? "#2563eb" : Theme.primary) : Theme.offline
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                        }
-
-                        // 点击事件处理
-                        onClicked: {
-                            onSendMessage(messageInput.text) // 调用发送回调
-                            messageInput.clear()              // 清空输入框
-                        }
+                    onClicked: {
+                        onSendMessage(messageInput.text)
+                        messageInput.clear()
                     }
                 }
             }

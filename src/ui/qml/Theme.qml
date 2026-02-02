@@ -21,6 +21,7 @@ QtObject {
     // === 边框与分隔线 ===
     readonly property color borderLight: "#f0f0f0"   // 极淡边框
     readonly property color borderGray: "#e5e7eb"    // 标准灰色边框
+    readonly property color separator: "#333333"     // 分割线颜色（灰黑色）
     readonly property color borderActive: "#e5e7eb"  // 激活项边框
 
     // === 文字颜色 ===
