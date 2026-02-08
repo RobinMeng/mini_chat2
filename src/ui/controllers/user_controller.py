@@ -24,13 +24,17 @@ class UserController(QObject):
         return self.user_manager.current_user
 
     def get_online_users_data(self):
-        """供 QML 使用的用户列表数据格式化"""
+        """供 QML 使用的用户列表数据格式化（排除自己）"""
         users = []
         current_me_id = self.current_user.user_id
         all_users = sorted(self.user_manager.get_all_users(),
                            key=lambda u: u.status != "online")
 
         for user in all_users:
+            # 过滤掉自己
+            if user.user_id == current_me_id:
+                continue
+            
             unread = self.db_manager.get_unread_count(user.user_id, current_me_id)
             users.append({
                 'user_id': user.user_id,

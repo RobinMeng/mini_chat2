@@ -39,7 +39,7 @@ class QmlBackend(QObject):
         
         # 1. 初始化底层资源
         self.db_manager = DatabaseManager()
-        self.user_manager = UserManager()
+        self.user_manager = UserManager(db_manager=self.db_manager)
         self.message_manager = MessageManager()
         self.user_manager.initialize_current_user()
         

@@ -74,14 +74,14 @@ Rectangle {
                             width: 8
                             height: 8
                             radius: 4                       // 圆角为宽度一半，即正圆
-                            color: isGroupChat ? "#10b981" : Theme.online // 群聊用特定绿，私聊用主题在线绿
+                            color: isGroupChat ? Theme.groupOnline : Theme.online // 群聊和私聊状态绿色
                         }
 
                         Label {
                             // 群聊显示成员数，私聊显示 Online
                             text: isGroupChat ? (groupMemberCount + " members") : "Online"
                             font.pixelSize: Theme.fontSizeMedium
-                            color: isGroupChat ? "#10b981" : Theme.online
+                            color: isGroupChat ? Theme.groupOnline : Theme.online
                             font.bold: true
                         }
                     }
@@ -244,11 +244,11 @@ Rectangle {
             Layout.preferredHeight: inputAreaHeight
             color: Theme.bgInputArea // 使用输入区背景色
 
-            // 顶部分割线 - 灰黑色
+            // 顶部分割线 - 浅灰色
             Rectangle {
                 width: parent.width
                 height: 1
-                color: Theme.separator
+                color: Theme.separatorLight  // 使用主题浅灰色分割线
                 anchors.top: parent.top
                 z: 11
             }
@@ -284,12 +284,12 @@ Rectangle {
                     }
                 }
 
-                // 拖拽时的视觉高亮线 (加粗并变为黑色)
+                // 拖拽时的视觉高亮线（加粗浅灰色）
                 Rectangle {
                     anchors.centerIn: parent
                     width: parent.width
                     height: 3 // 加粗为 3px
-                    color: "black" // 拖拽时变为黑色
+                    color: Theme.separatorLight // 使用主题浅灰色
                     visible: dragArea.pressed
                     opacity: 0.8 // 增强可见度
                 }

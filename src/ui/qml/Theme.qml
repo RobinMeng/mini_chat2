@@ -10,6 +10,7 @@ QtObject {
     readonly property color sentBubble: "#f0f7ff"    // 发送消息气泡背景
     readonly property color receivedBubble: "#ffffff" // 接收消息气泡背景
     readonly property color online: "#10b981"        // 在线状态颜色（绿色）
+    readonly property color groupOnline: "#10b981"   // 群组在线状态颜色（绿色）
     readonly property color offline: "#94a3b8"       // 离线状态颜色（灰色）
     readonly property color unreadBadge: "#ff4d4f"   // 未读消息提醒色（红色）
 
@@ -22,6 +23,7 @@ QtObject {
     readonly property color borderLight: "#f0f0f0"   // 极淡边框
     readonly property color borderGray: "#e5e7eb"    // 标准灰色边框
     readonly property color separator: "#333333"     // 分割线颜色（灰黑色）
+    readonly property color separatorLight: "#d1d5db" // 浅灰色分割线
     readonly property color borderActive: "#e5e7eb"  // 激活项边框
 
     // === 文字颜色 ===
