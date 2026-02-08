@@ -39,7 +39,8 @@ class ChatController(QObject):
             if sender_id == current_id:
                 self.db_manager.mark_as_read(message.from_user_id, self.user_manager.current_user.user_id)
                 message.is_read = True
-                self._message_model.add_message(message.to_dict())
+                # 刷新模型，从数据库重新加载
+                self._message_model.refresh()
                 self.newMessageReceived.emit(message.to_dict())
             return True
         except Exception as e:
@@ -50,7 +51,8 @@ class ChatController(QObject):
         """处理群聊消息 (UI 安全线程)"""
         try:
             if self._current_chat_type == 'group' and message.group_id == self._current_chat_group_id:
-                self._message_model.add_message(message.to_dict())
+                # 刷新模型，从数据库重新加载
+                self._message_model.refresh()
                 self.groupMessageReceived.emit(message.to_dict())
             return True
         except Exception as e:
@@ -69,9 +71,10 @@ class ChatController(QObject):
                 content=content
             )
             if success:
+                # 刷新模型，从数据库重新加载最新消息
+                self._message_model.refresh()
                 msgs = self.db_manager.get_group_messages(self._current_chat_group_id, limit=1)
                 if msgs:
-                    self._message_model.add_message(msgs[-1].to_dict())
                     self.newMessageSent.emit(msgs[-1].to_dict())
         
         elif self._current_chat_type == 'user' and self._current_chat_user_id:
@@ -89,7 +92,8 @@ class ChatController(QObject):
                 )
                 self.message_service.send_message(target_user.ip_address, target_user.tcp_port, msg.to_dict())
                 self.db_manager.save_message(msg)
-                self._message_model.add_message(msg.to_dict())
+                # 刷新模型，从数据库重新加载
+                self._message_model.refresh()
                 self.newMessageSent.emit(msg.to_dict())
             except Exception as e:
                 logger.error(f"发送私聊失败: {e}")

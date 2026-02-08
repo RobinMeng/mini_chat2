@@ -43,8 +43,8 @@ class QmlBackend(QObject):
         self.message_manager = MessageManager()
         self.user_manager.initialize_current_user()
         
-        # 2. 初始化 QML 模型
-        self._message_model = MessageListModel(self)
+        # 2. 初始化 QML 模型（注入 db_manager）
+        self._message_model = MessageListModel(db_manager=self.db_manager, parent=self)
         self._message_model.set_current_user_id(self.user_manager.current_user.user_id)
 
         # 3. 初始化网络底层服务
@@ -123,24 +123,25 @@ class QmlBackend(QObject):
 
     @pyqtSlot(str)
     def selectUser(self, user_id):
+        """选择私聊用户"""
         self.chat_ctrl.set_active_session('user', user_id=user_id)
         self.user_ctrl.set_current_chat_user_id(user_id)
         self.group_ctrl.set_current_chat_group_id(None)
         
-        # 加载历史消息逻辑
+        # 标记消息已读并刷新模型
         self.db_manager.mark_as_read(user_id, self.user_manager.current_user.user_id)
-        history = self.db_manager.get_messages(self.user_manager.current_user.user_id, user_id)
-        self._message_model.set_messages([msg.to_dict() for msg in history])
+        self._message_model.set_active_session('user', user_id=user_id)
         self.userListChanged.emit()
 
     @pyqtSlot(str)
     def selectGroup(self, group_id):
+        """选择群聊"""
         self.chat_ctrl.set_active_session('group', group_id=group_id)
         self.group_ctrl.set_current_chat_group_id(group_id)
         self.user_ctrl.set_current_chat_user_id(None)
         
-        history = self.db_manager.get_group_messages(group_id)
-        self._message_model.set_messages([msg.to_dict() for msg in history])
+        # 刷新模型以显示群聊消息
+        self._message_model.set_active_session('group', group_id=group_id)
         self.groupListChanged.emit()
 
     @pyqtSlot(str, list)
@@ -167,7 +168,14 @@ class QmlBackend(QObject):
     # --- 底层服务回调 (转发到内部安全信号) ---
 
     def _on_message_received_raw(self, message_data: dict):
-        self._internalMessageSignal.emit(Message.from_dict(message_data))
+        """接收私聊消息（网络线程回调）"""
+        message = Message.from_dict(message_data)
+        # 先保存到数据库
+        self.db_manager.save_message(message)
+        # 触发用户列表刷新（更新未读计数）
+        self.userListChanged.emit()
+        # 再触发UI更新信号
+        self._internalMessageSignal.emit(message)
 
     def _on_group_message_raw(self, message: Message):
         if message.from_user_id != self.user_manager.current_user.user_id:
