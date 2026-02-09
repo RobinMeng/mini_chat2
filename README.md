@@ -82,7 +82,8 @@ python tests/test_network_simple.py message
 - ✅ **数据驱动**: 使用 `QAbstractListModel` 驱动界面，解决大数据量下的卡顿与绑定失效问题。
 - ✅ **单机多实例测试**: 引入 `SO_REUSEPORT`，支持同一台机器开启多个客户端进行互通测试。
 - ✅ **后端重构**: 采用复合控制器模式，将业务逻辑解耦为独立子模块，提升系统可维护性。
-- ✅ **隐私安全**: 严格的“阅后即焚”逻辑，物理层级确保数据不留存。
+- ✅ **数据库单一数据源**: UserManager 和 MessageListModel 均采用数据库直查架构，彻底消除内存与数据库双重维护问题。
+- ✅ **隐私安全**: 严格的"阅后即焚"逻辑，物理层级确保数据不留存。
 - ✅ **健壮的协议**: 采用 4 字节长度前缀 + JSON 协议，解决 TCP 粘包/半包问题。
 
 ## 配置说明
@@ -99,6 +100,7 @@ python tests/test_network_simple.py message
 ### 已完成 ✅
 - [x] 项目结构搭建与 QML 基础架构
 - [x] 后端控制器解耦 (UserController/ChatController/GroupController)
+- [x] **数据库单一数据源架构**: MessageListModel 和 UserManager 完全基于数据库查询
 - [x] 基于 Python 的 `QAbstractListModel` 列表驱动
 - [x] UDP 广播服务（支持 `SO_REUSEPORT` 单机多开）
 - [x] TCP 异步消息收发与粘包处理
@@ -106,6 +108,7 @@ python tests/test_network_simple.py message
 - [x] **阅后即焚** 数据库销毁逻辑
 - [x] **未读消息计数** 与红色气泡提醒
 - [x] **下线状态感知** 与发送功能自动锁定
+- [x] **UI 样式解耦**: Theme.qml 集中管理所有颜色配置
 - [x] 环境变量驱动的端口与数据路径配置
 
 ### 开发中 🚧
